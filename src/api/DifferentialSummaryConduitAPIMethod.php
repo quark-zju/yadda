@@ -43,6 +43,11 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
     $ccs_map = id(new PhabricatorSubscribersQuery())
       ->withObjectPHIDs(mpull($revisions, 'getPHID'))
       ->execute();
+    $repos = id(new PhabricatorRepositoryQuery())
+      ->setViewer($viewer)
+      ->withPHIDs(mpull($revisions, 'getRepositoryPHID'))
+      ->execute();
+    $phid_callsign_map = mpull($repos, 'getCallsign', 'getPHID');
 
     // Collect all author PHIDs and prepare to convert them to names
     $author_phids = array_merge(
@@ -58,6 +63,8 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
       $phid = $revision->getPHID();
       $result = array(
         'id'           => $id,
+        'callsign'     => idx(
+          $phid_callsign_map, $revision->getRepositoryPHID()),
         'title'        => $revision->getTitle(),
         'author'       => $phid_author_map[$revision->getAuthorPHID()],
         'status'       =>
