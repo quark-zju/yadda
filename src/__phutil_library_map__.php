@@ -9,10 +9,16 @@
 phutil_register_library_map(array(
   '__library_version__' => 2,
   'class' => array(
+    'CelerityYaddaResources' => 'res/CelerityYaddaResources.php',
     'DifferentialSummaryConduitAPIMethod' => 'api/DifferentialSummaryConduitAPIMethod.php',
+    'YaddaApplication' => 'app/YaddaApplication.php',
+    'YaddaHomeController' => 'app/YaddaHomeController.php',
   ),
   'function' => array(),
   'xmap' => array(
+    'CelerityYaddaResources' => 'CelerityResourcesOnDisk',
     'DifferentialSummaryConduitAPIMethod' => 'ConduitAPIMethod',
+    'YaddaApplication' => 'PhabricatorApplication',
+    'YaddaHomeController' => 'PhabricatorController',
   ),
 ));
