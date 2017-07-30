@@ -39,10 +39,10 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
     $revisions = $query->execute();
 
     // Collecting profile images, key: username, value: URL
-    $image_map = array();
+    $profile_map = array();
 
     // Details of revisions
-    $xactions_map = $this->loadTransactions($viewer, $revisions, $image_map);
+    $xactions_map = $this->loadTransactions($viewer, $revisions, $profile_map);
     $depends_on_map = $this->loadDependsOn($viewer, $revisions);
     $ccs_map = id(new PhabricatorSubscribersQuery())
       ->withObjectPHIDs(mpull($revisions, 'getPHID'))
@@ -58,7 +58,7 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
       mpull($revisions, 'getAuthorPHID'),
       array_mergev(mpull($revisions, 'getReviewerPHIDs')),
       array_mergev(array_values($ccs_map)));
-    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $image_map);
+    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $profile_map);
     
     // Compound result for each revision
     $revision_descs = array();
@@ -89,18 +89,22 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
       $revision_descs[] = $desc;
     }
 
-    $image_descs = array();
-    foreach ($image_map as $name => $uri) {
-      $image_descs[] = array('name' => $name, 'uri' => $uri);
+    $profile_descs = array();
+    foreach ($profile_map as $name => $profile) {
+      $profile_descs[] = array(
+        'userName' => $name,
+        'realName' => $profile->getRealName(),
+        'image' => $profile->getProfileImageURI(),
+      );
     }
 
-    return array('revisions' => $revision_descs, 'images' => $image_descs);
+    return array('revisions' => $revision_descs, 'profiles' => $profile_descs);
   }
 
   protected function loadTransactions(
     PhabricatorUser $viewer,
     array $revisions,
-    array &$image_map) { // return {$revision_id => [$action]}
+    array &$profile_map) { // return {$revision_id => [$action]}
     assert_instances_of($revisions, 'DifferentialRevision');
 
     $phid_revision_map = mpull($revisions, null, 'getPHID');
@@ -112,7 +116,7 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
       ->execute();
 
     $phids = mpull($xactions, 'getAuthorPHID');
-    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $image_map);
+    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $profile_map);
     
     // Action keys could be: accept, reject, close, resign, abandon, reclaim,
     // reopen, accept, request-review, commandeer, plan-changes
@@ -195,14 +199,14 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
   protected function loadAuthorNameMap(
     PhabricatorUser $viewer,
     array $author_phids,
-    array &$image_map) { // return {$phid => $name}
+    array &$profile_map) { // return {$phid => $name}
     $authors = id(new PhabricatorPeopleQuery())
       ->setViewer($viewer)
       ->needProfileImage(true)
       ->withPHIDs($author_phids)
       ->execute();
     foreach ($authors as $author) {
-      $image_map[$author->getUserName()] = $author->getProfileImageURI();
+      $profile_map[$author->getUserName()] = $author;
     }
     return mpull($authors, 'getUserName', 'getPHID');
   }
