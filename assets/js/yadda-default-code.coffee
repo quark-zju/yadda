@@ -1,8 +1,3 @@
-###*
-# @provides yadda-default-code
-###
-
-window.yaddaDefaultCode = '''
 # This is a live CoffeeScript editor affecting the Yadda interface.
 # Code will be saved to localStorage automatically if compiles.
 #
@@ -55,7 +50,7 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
 # Current user
 user = null
 try
-  user = /\\/([^/]*)\\/$/.exec(document.querySelector('a.phabricator-core-user-menu').href)[1]
+  user = /\/([^/]*)\/$/.exec(document.querySelector('a.phabricator-core-user-menu').href)[1]
 
 # Get repo callsigns, plus "All", sort them reasonably (shortest first)
 getRepos = (state) ->
@@ -180,8 +175,8 @@ describeAction = (action) ->
     return
   desc = "#{action.author} #{verb}"
   if action.comment
-    if action.comment.includes('\\n')
-      desc += ": #{action.comment.split('\\n')[0]}..."
+    if action.comment.includes('\n')
+      desc += ": #{action.comment.split('\n')[0]}..."
     else
       desc += ": #{action.comment}"
   desc
@@ -234,7 +229,7 @@ renderActivities = (state, rev, actions) ->
       className = x.type # the latest action wins
     desc = describeAction(x)
     if desc
-      title += "#{desc}\\n"
+      title += "#{desc}\n"
     if !actionId or parseInt(x.id) < actionId
       actionId = parseInt(x.id)
   append()
@@ -325,4 +320,3 @@ stylesheet = """
           renderRepoList state
         div className: 'phabricator-nav-content mlt mll mlr mlb',
           renderTable state, grevs
-'''
