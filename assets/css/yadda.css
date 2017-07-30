@@ -1,0 +1,18 @@
+/**
+ * @provides yadda-css
+ * @requires codemirror-css
+ */
+
+.yadda-editor {
+  position: fixed;
+  resize: both;
+  overflow: auto;
+  max-height: calc(100% - 90px);
+  max-width: calc(100% - 60px);
+  z-index: 10;
+}
+
+.yadda-editor .CodeMirror {
+  height: calc(100% - 20px); /* make bottom-right "resize handler" visible */
+  border: 1px solid #cccccc;
+}
