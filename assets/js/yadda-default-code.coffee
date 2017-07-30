@@ -105,29 +105,29 @@ installKeyboardShortcuts = (state, grevs) ->
   if !JX? || !JX.KeyboardShortcut?
     return
   if not state.keyNext?
-    (state.keyNext = new JX.KeyboardShortcut(['j'], 'Select next stack')).register()
+    (state.keyNext = new JX.KeyboardShortcut(['j'], 'Select revisions in the next stack.')).register()
   if not state.keyPrev?
-    (state.keyPrev = new JX.KeyboardShortcut(['k'], 'Select previous stack')).register()
+    (state.keyPrev = new JX.KeyboardShortcut(['k'], 'Select revisions in the previous stack.')).register()
   if not state.keyNextSingle?
-    (state.keyNextSingle = new JX.KeyboardShortcut(['J'], 'Select next revision')).register()
+    (state.keyNextSingle = new JX.KeyboardShortcut(['J'], 'Select the next revision.')).register()
   if not state.keyPrevSingle?
-    (state.keyPrevSingle = new JX.KeyboardShortcut(['K'], 'Select previous revision')).register()
+    (state.keyPrevSingle = new JX.KeyboardShortcut(['K'], 'Select the previous revision.')).register()
   if not state.keySelAll?
-    (state.keySelAll = new JX.KeyboardShortcut(['*'], 'Select all in current view')).register()
+    (state.keySelAll = new JX.KeyboardShortcut(['*'], 'Select all revision in the current view.')).register()
   if not state.keyToggle?
-    k = (new JX.KeyboardShortcut(['x'], 'Toggle checkboxes for selected revisions')).setHandler ->
+    k = (new JX.KeyboardShortcut(['x'], 'Toggle checkboxes for selected revisions.')).setHandler ->
       checked = not ((state.currRevs || []).some (r) -> state.checked[r])
       (state.currRevs || []).forEach (r) -> state.checked[r] = checked
       state.set()
     (state.keyToggle = k).register()
   if not state.keyOpen?
-    k = (new JX.KeyboardShortcut(['o'], 'Open a revision in new tab')).setHandler ->
+    k = (new JX.KeyboardShortcut(['o'], 'Open a revision in new tab.')).setHandler ->
       r = _.min(state.currRevs)
       if r
         window.open("/D#{r}", '_blank')
     (state.keyOpen = k).register()
   if not state.keyMarkRead?
-    k = (new JX.KeyboardShortcut(['a'], 'Mark selected revisions as read')).setHandler ->
+    k = (new JX.KeyboardShortcut(['a'], 'Mark revisions with chedkbox ticked as read.')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked))
       state.set 'checked', {}
     (state.keyMarkRead = k).register()

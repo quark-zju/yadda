@@ -1,3 +1,3 @@
 <?php
 
-phutil_register_library('phabsummary', __FILE__);
+phutil_register_library('yadda', __FILE__);

@@ -8,7 +8,7 @@
 return array(
   'names' => array(
     'css/yadda.css' => 'a046a864',
-    'js/yadda-app.min.js' => '67c95835',
+    'js/yadda-app.min.js' => '5dbb4548',
     'vendor/codemirror/codemirror.css' => 'a7742522',
     'vendor/codemirror/codemirror.js' => '6c7852d9',
     'vendor/codemirror/mode/coffeescript/coffeescript.js' => '11c5ba49',
@@ -28,7 +28,7 @@ return array(
     'react' => '58873982',
     'react-dom' => '499f306a',
     'yadda-css' => 'a046a864',
-    'yadda-home' => '67c95835',
+    'yadda-home' => '5dbb4548',
   ),
   'requires' => array(
     'a046a864' => array(

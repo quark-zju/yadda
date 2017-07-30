@@ -1,4 +1,4 @@
-Provides a `differential.summary` API for Phabricator.
+Provides a "Yadda" application for Phabricator.
 
 INSTALL
 phabricator/bin/config set load-libraries '["/this/repo/src"]'

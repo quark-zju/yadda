@@ -85,7 +85,7 @@ _init = ->
   _redraw = -> node.forceUpdate()
 
   refresh = ->
-    _request '/api/differential.summary', null, (r) ->
+    _request '/api/yadda.query', null, (r) ->
       if r.result
         state.revisions = r.result.revisions
         state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
@@ -106,7 +106,7 @@ _init = ->
     initEditor = -> return # no need to init again
 
   if JX.KeyboardShortcut
-    k = new JX.KeyboardShortcut(['~'], 'Show live code editor')
+    k = new JX.KeyboardShortcut(['~'], 'Show live code editor.')
     k.setHandler ->
       target = document.querySelector('.yadda-editor')
       if target.style.display == 'none'
