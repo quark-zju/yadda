@@ -153,6 +153,7 @@ final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
 
       if (array_key_exists('type', $value)) {
         $value['author'] = $phid_author_map[$xaction->getAuthorPHID()];
+        $value['id'] = $xaction->getID();
         $value['dateCreated'] = $xaction->getDateCreated();
         $value['dateModified'] = $xaction->getDateModified();
         $results[$revision->getID()][] = $value;
