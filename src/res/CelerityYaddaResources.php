@@ -15,7 +15,7 @@ final class CelerityYaddaResources extends CelerityResourcesOnDisk {
   }
 
   private function joinPath($to_file) {
-    return (phutil_get_library_root('phabsummary')).'/'.$to_file;
+    return (phutil_get_library_root('yadda')).'/'.$to_file;
   }
 
 }

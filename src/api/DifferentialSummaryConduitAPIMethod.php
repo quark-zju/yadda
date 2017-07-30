@@ -1,9 +1,9 @@
 <?php
 
-final class DifferentialSummaryConduitAPIMethod extends ConduitAPIMethod {
+final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
 
   public function getAPIMethodName() {
-    return 'differential.summary';
+    return 'yadda.query';
   }
 
   public function shouldRequireAuthentication() {
