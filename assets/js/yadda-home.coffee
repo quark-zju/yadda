@@ -1,6 +1,5 @@
 ###*
 # @provides yadda-home
-# @requires yadda-default-code
 # @requires codemirror
 # @requires codemirror-coffeescript
 # @requires coffeescript
