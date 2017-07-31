@@ -11,13 +11,77 @@ final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
   }
 
   public function getMethodDescription() {
-    return pht('Get metadata about Differential Revisions. '.
-      'If no `ids` are provided, return all open revisions.');
+    return pht('Get data useful for Yadda, including Differential Revision '.
+      ' metadata, involved profiles and current user name. ');
+  }
+
+  public function getMethodDocumentation() {
+    $text = pht(<<<EOT
+**Input**
+
+- `revisionids`: a list of Differential Revision IDs.
+  If not set, return all open revisions.
+
+**Output**
+
+The output includes `revisions`, `profiles` and `user`. `revisions` contains
+user interactions (ex. comment, accept, reject, update). `profiles` contains
+metadata about users referred by `revisions`. `user` is the name of current
+user issuing the API request.
+
+```lang=json
+{ "revisions":
+    [ { "id": "1", "callsign": "E", "title": "first commit",
+        "author": "bob", "status": "Accepted",
+        "summary": "The first comment.", "testPlan": "", "lineCount": "4",
+        "dependsOn": [], "reviewers": [ "alice" ], "ccs": [ "alice" ],
+        "actions":
+          [ { "id": "10", "type": "accept", "author": "alice",
+              "dateCreated": "1501528752", "dateModified": "1501528752" },
+            { "id": "2", "type": "update", "author": "bob",
+              "dateCreated": "1499014795", "dateModified": "1499014795" } ],
+        "dateCreated": "1499014795", "dateModified": "1501528752" },
+      { "id": "2", "callsign": "E", "title": "second commit",
+        "author": "bob", "status": "Needs Review",
+        "summary": "This depends on D1", "testPlan": "", "lineCount": "192",
+        "dependsOn": ["1"], "reviewers": [], "ccs": ["alice"],
+        "actions":
+          [ { "id": "42", "type": "update", "author": "bob",
+              "dateCreated": "1499026947", "dateModified": "1499026947" },
+            { "id": "29", "type": "comment", "author": "alice",
+              "comment": "Generally looks good to me.",
+              "dateCreated": "1499017179", "dateModified": "1499017179" },
+            { "id": "28", "type": "inline", "author": "alice",
+              "comment": "nit: prefer `changeset` to `commit`",
+              "dateCreated": "1499017179", "dateModified": "1499017179" } ],
+        "dateCreated": "1499015153", "dateModified": "1499017179" } ],
+  "profiles":
+    [ { "userName": "alice", "realName": "Alice",
+        "image": "http://phabricator.example.com/file/data/..." },
+      { "userName": "bob", "realName": "Bob",
+        "image": "http://phabricator.example.com/file/data/..." } ],
+  "user": "alice" }
+```
+
+The `id` used in `revisions` are Differential Revision IDs that can be used
+directly to construct `/Dn` URLs. `id` used in `actions` are internal IDs.
+
+`dependsOn` will not have references to Differential Revisions that are not
+requested.
+EOT
+);
+    $engine = PhabricatorMarkupEngine::getEngine();
+    $engine->setConfig('viewer', $this->getViewer());
+    $engine->setConfig('preserve-linebreaks', false);
+    $rendered = $engine->markupText($text);
+    $div = phutil_tag_div('phabricator-remarkup mlb', $rendered);
+
+    return id(new PHUIObjectBoxView())->appendChild($div);
   }
 
   protected function defineParamTypes() {
     return array(
-      'ids' => 'optional list<int>',
+      'revisionids' => 'optional list<int>',
     );
   }
 
@@ -30,7 +94,7 @@ final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
     $query = id(new DifferentialRevisionQuery())
       ->setViewer($viewer)
       ->needReviewers(true);
-    $ids = $request->getValue('ids', array());
+    $ids = $request->getValue('revisionids', array());
     if ($ids) {
       $query->withIDs($ids);
     } else {
@@ -98,7 +162,11 @@ final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
       );
     }
 
-    return array('revisions' => $revision_descs, 'profiles' => $profile_descs);
+    return array(
+      'revisions' => $revision_descs,
+      'profiles' => $profile_descs,
+      'user' => $viewer->getUserName(),
+    );
   }
 
   protected function loadTransactions(
