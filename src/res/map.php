@@ -8,10 +8,10 @@
 return array(
   'names' => array(
     'css/yadda.css' => 'a046a864',
-    'js/yadda-app.min.js' => '5dbb4548',
+    'js/yadda-app.min.js' => 'eb5aaf26',
     'vendor/codemirror/codemirror.css' => 'a7742522',
-    'vendor/codemirror/codemirror.js' => '6c7852d9',
-    'vendor/codemirror/mode/coffeescript/coffeescript.js' => '11c5ba49',
+    'vendor/codemirror/codemirror.min.js' => 'f64c7b27',
+    'vendor/codemirror/mode/coffeescript/coffeescript.min.js' => '2a057844',
     'vendor/coffeescript/coffeescript.js' => '8a9e999f',
     'vendor/lodash/lodash.js' => '216cb86c',
     'vendor/moment/moment.js' => '3ec21492',
@@ -19,8 +19,8 @@ return array(
     'vendor/react/react.min.js' => '58873982',
   ),
   'symbols' => array(
-    'codemirror' => '6c7852d9',
-    'codemirror-coffeescript' => '11c5ba49',
+    'codemirror' => 'f64c7b27',
+    'codemirror-coffeescript' => '2a057844',
     'codemirror-css' => 'a7742522',
     'coffeescript' => '8a9e999f',
     'lodash' => '216cb86c',
@@ -28,7 +28,7 @@ return array(
     'react' => '58873982',
     'react-dom' => '499f306a',
     'yadda-css' => 'a046a864',
-    'yadda-home' => '5dbb4548',
+    'yadda-home' => 'eb5aaf26',
   ),
   'requires' => array(
     'a046a864' => array(
