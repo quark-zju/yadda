@@ -64,7 +64,7 @@ getReadMap = -> # {id: dateModified}
     result = JSON.parse(localStorage['revRead'])
   result
 
-markAsRead = (state, revIds) ->
+markAsRead = (state, revIds, mark = true) ->
   marked = getReadMap()
   revMap = _.keyBy(state.revisions, (r) -> r.id)
   # remove closed revisions
@@ -72,7 +72,10 @@ markAsRead = (state, revIds) ->
   # read dateModified
   revIds.forEach (id) ->
     if revMap[id]
-      marked[id] = parseInt(revMap[id].dateModified)
+      if mark
+        marked[id] = parseInt(revMap[id].dateModified)
+      else
+        marked[id] = 0
   localStorage['revRead'] = JSON.stringify(marked)
 
 # Get timestamp of last "marked read" or commented
@@ -101,6 +104,7 @@ scrollIntoView = ->
       e.scrollIntoView()
 
 # Keyboard shortcuts
+_lastIndex = -1
 installKeyboardShortcuts = (state, grevs) ->
   if !JX? || !JX.KeyboardShortcut?
     return
@@ -131,6 +135,14 @@ installKeyboardShortcuts = (state, grevs) ->
       markAsRead state, _.keys(_.pickBy(state.checked))
       state.set 'checked', {}
     (state.keyMarkRead = k).register()
+  if not state.keyMarkUnread?
+    k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with chedkbox ticked as not read.')).setHandler ->
+      markAsRead state, _.keys(_.pickBy(state.checked)), false
+      state.set 'checked', {}
+    (state.keyMarkUnread = k).register()
+  if not state.keyReload?
+    k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
+    (state.keyReload = k).register()
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
     if singleSelection
@@ -139,7 +151,10 @@ installKeyboardShortcuts = (state, grevs) ->
       _.values(grevs).map((rs) -> rs.map(toId))
   getIndex = (revIds) ->
     currRevs = state.currRevs || []
-    _.findIndex(revIds, (rs) -> _.intersection(rs, currRevs).length > 0) || 0
+    index = _.findIndex(revIds, (rs) -> _.intersection(rs, currRevs).length > 0)
+    if index == -1
+      index = _lastIndex # best-effort guess when things got deleted
+    _lastIndex = index
   [[true, state.keyNextSingle, state.keyPrevSingle], [false, state.keyNext, state.keyPrev]].forEach (x) ->
     [single, next, prev] = x
     next.setHandler ->
@@ -300,7 +315,8 @@ stylesheet = """
 .yadda .profile.reject { border-bottom: 4px solid #C0392B; }
 .yadda .profile.update { border-bottom: 4px solid #3498DB; }
 .yadda td.read-actions { text-align: right; opacity: 0.5; max-width: 200px; overflow: auto; border-right: 1px dashed #dde8ef; padding-right: 1px; }
-.yadda tr.read { background: #E2EEF5; }
+.yadda tr.read { background: #f0f6fa; }
+.yadda tr.read td.title { opacity: 0.5; }
 .yadda tr.selected { background-color: #FDF3DA; }
 """
 

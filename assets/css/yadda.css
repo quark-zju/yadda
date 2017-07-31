@@ -16,3 +16,13 @@
   height: calc(100% - 20px); /* make bottom-right "resize handler" visible */
   border: 1px solid #cccccc;
 }
+
+.yadda-root .hint-code-different {
+  bottom: 8px;
+  left: 8px;
+  cursor: default;
+  color: #aaa;
+  position: fixed;
+  user-select: none;
+  z-index: 9;
+}

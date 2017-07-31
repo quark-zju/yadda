@@ -29,7 +29,7 @@ _codemirrorOpts =
   lineNumbers: true
 
 _init = ->
-  {div, pre} = React.DOM
+  {div, span} = React.DOM
 
   _request = (path, data, callback) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
@@ -58,6 +58,13 @@ _init = ->
     return [(_cached.scope || {}), err]
 
   class Root extends React.Component
+    handleCodeRest: ->
+      if not confirm('Do you want to reset to the default code? This cannot be undone.')
+        return
+      state.set 'code', yaddaDefaultCode
+      localStorage.removeItem(_codeKey)
+      document.querySelectorAll('.yadda-editor').forEach((e) -> e.style.display = 'none')
+
     render: ->
       content = null
       errors = []
@@ -78,6 +85,8 @@ _init = ->
           div key: i, className: 'phui-info-view phui-info-severity-warning', title: e.stack,
             e.toString(),
         content
+        if state.code && state.code != yaddaDefaultCode
+          span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. Double click to restore the default code.', '* customized'
 
   state.code = (localStorage[_codeKey] || yaddaDefaultCode).replace(/\t/g, '  ')
   element = React.createElement(Root)
@@ -91,8 +100,15 @@ _init = ->
         state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
         _redraw()
 
-  refresh()
-  setInterval refresh, 150000
+  _tick = 0
+  _refreshTick = ->
+    if document.hidden
+      _tick = 0 # refresh when the page gets focused back
+    else
+      if _tick == 0
+        refresh()
+      _tick = (_tick + 1) % 150 # 2.5 minutes
+  setInterval _refreshTick, 1000
 
   initEditor = (target) ->
     target.style.left = '30px'
