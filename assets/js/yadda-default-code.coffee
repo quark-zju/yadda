@@ -103,6 +103,30 @@ scrollIntoView = ->
     if not isVisible(e)
       e.scrollIntoView()
 
+# Copy to clipboard
+copy = (text) ->
+  if not text
+    return
+  t = document.createElement('textarea')
+  t.style.position = 'fixed'
+  t.style.bottom = 0
+  t.style.right = 0
+  t.style.width = '50px'
+  t.style.height = '20px'
+  t.style.border = 'none'
+  t.style.outline = 'none'
+  t.style.boxShadow = 'none'
+  t.style.background = 'transparent'
+  t.style.opacity = '0.1'
+  t.value = text
+  document.body.appendChild t
+  t.select()
+  try
+    document.execCommand('copy')
+    new JX.Notification().setContent("Copied: #{text}").setDuration(3000).show()
+  finally
+    document.body.removeChild t
+
 # Keyboard shortcuts
 _lastIndex = -1
 installKeyboardShortcuts = (state, grevs) ->
@@ -125,24 +149,41 @@ installKeyboardShortcuts = (state, grevs) ->
       state.set()
     (state.keyToggle = k).register()
   if not state.keyOpen?
-    k = (new JX.KeyboardShortcut(['o'], 'Open a revision in new tab.')).setHandler ->
+    k = (new JX.KeyboardShortcut(['o'], 'Open one of selected revisions in a new tab.')).setHandler ->
       r = _.min(state.currRevs)
       if r
         window.open("/D#{r}", '_blank')
     (state.keyOpen = k).register()
+  if not state.keyOpenAll?
+    k = (new JX.KeyboardShortcut(['O'], 'Open all of selected revisions in new tabs.')).setHandler ->
+      state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
+    (state.keyOpenAll = k).register()
   if not state.keyMarkRead?
-    k = (new JX.KeyboardShortcut(['a'], 'Mark revisions with chedkbox ticked as read.')).setHandler ->
+    k = (new JX.KeyboardShortcut(['a'], 'Mark revisions with checkbox ticked as read.')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked))
       state.set 'checked', {}
     (state.keyMarkRead = k).register()
   if not state.keyMarkUnread?
-    k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with chedkbox ticked as not read.')).setHandler ->
+    k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with checkbox ticked as not read.')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked)), false
       state.set 'checked', {}
     (state.keyMarkUnread = k).register()
   if not state.keyReload?
     k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
     (state.keyReload = k).register()
+  if document.queryCommandSupported('copy')
+    if not state.keyCopy?
+      k = (new JX.KeyboardShortcut(['c'], 'Copy selected revision numbers to clipboard.')).setHandler ->
+        ids = state.currRevs || []
+        ids = _.sortBy(ids, parseInt)
+        copy _.join(ids.map((id) -> "D#{id}"), '+')
+      (state.keyCopy = k).register()
+    if not state.keyCopyChecked?
+      k = (new JX.KeyboardShortcut(['C'], 'Copy revision numbers with checkbox ticked to clipboard.')).setHandler ->
+        ids = _.keys(_.pickBy(state.checked))
+        ids = _.sortBy(ids, parseInt)
+        copy _.join(ids.map((id) -> "D#{id}"), '+')
+      (state.keyCopyChecked = k).register()
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
     if singleSelection
