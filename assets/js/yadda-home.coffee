@@ -95,6 +95,7 @@ _init = ->
     _request '/api/yadda.query', null, (r) ->
       if r.result
         state.revisions = r.result.revisions
+        state.user = r.result.user
         state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
         _redraw()
 
