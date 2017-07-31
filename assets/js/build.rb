@@ -12,7 +12,7 @@ end
 exit 1 unless system'coffee -c yadda-tmp.coffee'
 
 # Celerity fails to minify the resource. Let's do it manually
-files = Dir['../vendor/{codemirror,lodash,moment,coffeescript}/*.js'].sort + ['yadda-tmp.js']
+files = Dir['../vendor/{lodash,moment,coffeescript}/*.js'].sort + ['yadda-tmp.js']
 exit 2 unless system "uglifyjs --comments '/icense/' -d __DEV__=0 -o yadda-app.min.js #{files * ' '}"
 
 # Add "@do-not-minify" to bypass Celerity
@@ -27,8 +27,14 @@ EOS
 # uglifyjs does not handle react.js well, write it manually
 File.open('yadda-app.min.js', 'w') do |f|
   f.write(header)
-  f.write(File.read('../vendor/react/react.min.js'))
-  f.write(File.read('../vendor/react/react-dom.min.js'))
+  %w[
+    ../vendor/react/react.min.js
+    ../vendor/react/react-dom.min.js
+    ../vendor/codemirror/codemirror.min.js
+    ../vendor/codemirror/mode/coffeescript/coffeescript.min.js
+  ].each do |path|
+    f.write(File.read(path))
+  end
   f.write(content)
 end
 
