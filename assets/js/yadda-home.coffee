@@ -14,8 +14,6 @@ _profileKey = 'prof'
 _redraw = -> return
 
 state =
-  revisions: []
-  profileMap: {}
   set: (name, value) ->
     if name
       state[name] = value
@@ -86,7 +84,7 @@ _init = ->
             e.toString(),
         content
         if state.code && state.code != yaddaDefaultCode
-          span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. Double click to restore the default code.', '* customized'
+          span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentionally, double click to restore to the default code.', '* customized'
 
   state.code = (localStorage[_codeKey] || yaddaDefaultCode).replace(/\t/g, '  ')
   element = React.createElement(Root)
@@ -108,6 +106,7 @@ _init = ->
       if _tick == 0
         refresh()
       _tick = (_tick + 1) % 150 # 2.5 minutes
+  _refreshTick()
   setInterval _refreshTick, 1000
 
   initEditor = (target) ->

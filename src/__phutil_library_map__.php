@@ -12,7 +12,7 @@ phutil_register_library_map(array(
     'CelerityYaddaResources' => 'res/CelerityYaddaResources.php',
     'YaddaApplication' => 'app/YaddaApplication.php',
     'YaddaHomeController' => 'app/YaddaHomeController.php',
-    'YaddaQueryConduitAPIMethod' => 'api/DifferentialSummaryConduitAPIMethod.php',
+    'YaddaQueryConduitAPIMethod' => 'api/YaddaQueryConduitAPIMethod.php',
   ),
   'function' => array(),
   'xmap' => array(
