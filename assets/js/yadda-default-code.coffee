@@ -10,12 +10,12 @@
 # Pre-defined queries
 # Change this to affect the navigation side bar
 queries = [
-  ['Unread', (revs) ->
+  ['Unread', (revs, state) ->
     readMap = getReadMap()
-    revs.filter (r) -> parseInt(r.dateModified) > getDateRead(readMap, r)],
-  ['Commented', (revs) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == user)],
-  ['Subscribed', (revs) -> revs.filter (r) -> r.ccs.includes(user)],
-  ['Authored', (revs) -> revs.filter (r) -> r.author == user],
+    revs.filter (r) -> parseInt(r.dateModified) > getDateRead(state, readMap, r)],
+  ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)],
+  ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)],
+  ['Authored', (revs, state) -> revs.filter (r) -> r.author == state.user],
   ['All', (revs) -> revs],
 ]
 
@@ -49,11 +49,6 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
   _.map(_.sortBy(_.values(gmap), groupSortKey), (revs) ->
     _.sortBy(revs, singleSortKey))
 
-# Current user
-user = null
-try
-  user = /\/([^/]*)\/$/.exec(document.querySelector('a.phabricator-core-user-menu').href)[1]
-
 # Get repo callsigns, plus "All", sort them reasonably (shortest first)
 getRepos = (state) ->
   repos = _.uniq(state.revisions.map((r) -> r.callsign || 'All'))
@@ -81,8 +76,8 @@ markAsRead = (state, revIds, markDate = null) ->
   localStorage['revRead'] = JSON.stringify(marked)
 
 # Get timestamp of last "marked read" or commented
-getDateRead = (readMap, rev) ->
-  commented = _.max(rev.actions.filter((x) -> x.author == user).map((x) -> parseInt(x.dateModified))) || -1
+getDateRead = (state, readMap, rev) ->
+  commented = _.max(rev.actions.filter((x) -> x.author == state.user).map((x) -> parseInt(x.dateModified))) || -1
   marked = readMap[rev.id] || -1
   _.max([marked, commented])
 
@@ -317,7 +312,7 @@ renderTable = (state, grevs) ->
           mtime = parseInt(r.dateModified)
           ctime = parseInt(r.dateCreated)
           lines = parseInt(r.lineCount)
-          atime = getDateRead(readMap, r)
+          atime = getDateRead(state, readMap, r)
           actions = r.actions.filter((x) -> parseInt(x.dateModified) > ctime) # do not show actions creating a revision
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
