@@ -39,3 +39,4 @@ File.open('yadda-app.min.js', 'w') do |f|
 end
 
 FileUtils.rm_f ['yadda-tmp.coffee', 'yadda-tmp.js']
+system 'celerity map'

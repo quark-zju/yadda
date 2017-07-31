@@ -2,7 +2,8 @@
 # Code will be saved to localStorage automatically if compiles.
 #
 # The entry point is "@render(state)" which returns ReactElement.
-# "state" is refreshed periodically.
+# See /conduit/method/yadda.query/ for what "state" contains. "state" is
+# refreshed periodically.
 #
 # LoDash, Moment.js, React.js and Javelin are available.
 
@@ -13,6 +14,7 @@ queries = [
     readMap = getReadMap()
     revs.filter (r) -> parseInt(r.dateModified) > getDateRead(readMap, r)],
   ['Commented', (revs) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == user)],
+  ['Subscribed', (revs) -> revs.filter (r) -> r.ccs.includes(user)],
   ['Authored', (revs) -> revs.filter (r) -> r.author == user],
   ['All', (revs) -> revs],
 ]
@@ -64,7 +66,7 @@ getReadMap = -> # {id: dateModified}
     result = JSON.parse(localStorage['revRead'])
   result
 
-markAsRead = (state, revIds, mark = true) ->
+markAsRead = (state, revIds, markDate = null) ->
   marked = getReadMap()
   revMap = _.keyBy(state.revisions, (r) -> r.id)
   # remove closed revisions
@@ -72,10 +74,10 @@ markAsRead = (state, revIds, mark = true) ->
   # read dateModified
   revIds.forEach (id) ->
     if revMap[id]
-      if mark
+      if markDate is null
         marked[id] = parseInt(revMap[id].dateModified)
       else
-        marked[id] = 0
+        marked[id] = markDate
   localStorage['revRead'] = JSON.stringify(marked)
 
 # Get timestamp of last "marked read" or commented
@@ -129,6 +131,7 @@ copy = (text) ->
 
 # Keyboard shortcuts
 _lastIndex = -1
+_muteDate = Number.MAX_SAFE_INTEGER
 installKeyboardShortcuts = (state, grevs) ->
   if !JX? || !JX.KeyboardShortcut?
     return
@@ -159,13 +162,18 @@ installKeyboardShortcuts = (state, grevs) ->
       state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
     (state.keyOpenAll = k).register()
   if not state.keyMarkRead?
-    k = (new JX.KeyboardShortcut(['a'], 'Mark revisions with checkbox ticked as read.')).setHandler ->
+    k = (new JX.KeyboardShortcut(['a'], 'Archive revisions with checkbox ticked (mark as read).')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked))
       state.set 'checked', {}
     (state.keyMarkRead = k).register()
+  if not state.keyMarkReadForever?
+    k = (new JX.KeyboardShortcut(['m'], 'Mute revisions with checkbox ticked (mark as read forever).')).setHandler ->
+      markAsRead state, _.keys(_.pickBy(state.checked)), _muteDate 
+      state.set 'checked', {}
+    (state.keyMarkReadForever = k).register()
   if not state.keyMarkUnread?
     k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with checkbox ticked as not read.')).setHandler ->
-      markAsRead state, _.keys(_.pickBy(state.checked)), false
+      markAsRead state, _.keys(_.pickBy(state.checked)), 0
       state.set 'checked', {}
     (state.keyMarkUnread = k).register()
   if not state.keyReload?
@@ -266,18 +274,15 @@ renderProfile = (state, username, opts = {}) ->
   profile = state.profileMap[username]
   a _.extend({className: "profile", title: profile.realName, href: "/p/#{username}", style: {backgroundImage: "url(#{profile.image})"}}, opts)
 
-renderActivities = (state, rev, actions) ->
+renderActivities = (state, rev, actions, extraClassName = '') ->
   author = className = title = actionId = ''
   elements = []
   append = ->
     # [author, className, title, actionId] = buf
     if author
-      elements.push span key: actionId,
-        renderProfile state, author, href: "/D#{rev.id}##{actionId}", title: title, className: "#{className} profile action"
+      elements.push renderProfile state, author, href: "/D#{rev.id}##{actionId}", title: title, className: "#{extraClassName} #{className} profile action", key: actionId
     author = className = title = actionId = ''
   _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach (x) ->
-    if parseInt(x.dateCreated) <= parseInt(rev.dateCreated) # do not show actions creating a revision
-      return
     if x.author != author
       append()
     author = x.author
@@ -298,29 +303,28 @@ renderTable = (state, grevs) ->
   table className: 'aphront-table-view',
     thead null,
       tr null,
-        th style: {width: 4, padding: '8px 0px'}, ''  # selection indicator
-        th style: {width: 10}, '' # checkbox
+        th style: {width: 4, padding: '8px 0px'} # selection indicator
+        th style: {width: 28, padding: '8px 0px'} # profile
         th null, 'Revision'
-        th colSpan: 2, style: {textAlign: 'center'}, title: 'Read | Unread', 'Activities'
-        th style: {width: 20, textAlign: 'right'}, 'Size'
-        th style: {width: 20}, 'Updated'
+        th style: {width: 272}, 'Activities'
+        th style: {width: 50, textAlign: 'right'}, 'Size'
+        th style: {width: 90}, 'Updated'
+        th style: {width: 28, padding: '8px 0px'} # checkbox
     grevs.map (subgrevs, i) ->
       lastAuthor = null # dedup same author
       tbody key: i,
         subgrevs.map (r) ->
-          mtime = moment.unix(parseInt(r.dateModified))
+          mtime = parseInt(r.dateModified)
+          ctime = parseInt(r.dateCreated)
           lines = parseInt(r.lineCount)
           atime = getDateRead(readMap, r)
-          actions = r.actions
+          actions = r.actions.filter((x) -> parseInt(x.dateModified) > ctime) # do not show actions creating a revision
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
-          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{state.checked[r.id] && 'selected'}",
+
+          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{state.checked[r.id] && 'selected'}", onClick: (-> state.set 'currRevs', [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'}"
             td null,
-              input type: 'checkbox', checked: (state.checked[r.id] || false), onChange: (e) ->
-                state.checked[r.id] = !state.checked[r.id]
-                state.set()
-                e.target.blur()
               if r.author != lastAuthor
                 lastAuthor = r.author
                 renderProfile(state, r.author)
@@ -328,46 +332,67 @@ renderTable = (state, grevs) ->
               strong null, "D#{r.id} "
               a href: "/D#{r.id}",
                 strong null, r.title
-            td className: 'read-actions',
-              renderActivities state, r, readActions
-            td className: 'unread-actions',
-              renderActivities state, r, unreadActions
-            td null,
-              span className: 'size', style: {width: lines / 7.2}, title: "#{lines} lines"
+            td className: 'actions',
+              renderActivities state, r, readActions, 'read'
+              if readActions.length > 0 and unreadActions.length > 0
+                span className: 'action-splitter'
+              renderActivities state, r, unreadActions, 'unread'
+            td className: 'size',
+              span className: 'size', "#{lines} line#{lines > 1 && 's' || ''}"
             [mtime].map (time, i) ->
-              td key: i, title: time.format('LLL'),
+              time = moment.unix(time)
+              td key: i, title: time.format('LLL'), className: 'time',
                 if time > ago
                   time.fromNow()
                 else
                   time.format('MMM D')
+            td null,
+              input type: 'checkbox', checked: (state.checked[r.id] || false), onChange: (e) ->
+                state.checked[r.id] = !state.checked[r.id]
+                state.set()
+                e.target.blur()
+
+renderLoadingIndicator = ->
+  div style: {textAlign: 'center', marginTop: 240, color: '#92969D'},
+    React.DOM.p null, 'Fetching data...'
+    React.DOM.progress style: {height: 10, width: 100}
 
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
+.yadda table { table-layout:fixed; }
 .yadda td input { display: inline-block; vertical-align: middle; margin: 3px 5px; }
 .yadda td.selected, .yadda td.not-selected { padding: 0px 2px; }
 .yadda td.selected { background: #3498db; }
+.yadda td.size { text-align: right; }
 .yadda tbody { border-bottom: 1px solid #dde8ef }
 .yadda tbody:last-child { border-bottom: transparent; }
-.yadda span.size { height: 10px; background: #3498db; display: inline-block; float: right }
-.yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: left-top; background-repeat: no-repeat; background-clip: content-box;}
-.yadda .profile.action { margin-right: 2px; }
-.yadda .profile.accept, .yadda .profile.reject, .yadda .profile.update { height: 15px; padding-bottom: 1px; }
+.yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: left-top; background-repeat: no-repeat; background-clip: content-box; border-radius: 2px; }
+.yadda span.action-splitter { border-right: 1px solid #BFCFDA; margin: 3px 4px; height: 16px; display: inline-block; vertical-align: middle; float: left; }
+.yadda .profile.action { margin: 1px; float: left; }
+.yadda .profile.action.read { opacity: 0.3; }
+.yadda .profile.accept, .yadda .profile.reject, .yadda .profile.update { height: 15px; padding-bottom: 1px; border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
 .yadda .profile.accept { border-bottom: 4px solid #139543; }
 .yadda .profile.reject { border-bottom: 4px solid #C0392B; }
 .yadda .profile.update { border-bottom: 4px solid #3498DB; }
-.yadda td.read-actions { text-align: right; opacity: 0.5; max-width: 200px; overflow: auto; border-right: 1px dashed #dde8ef; padding-right: 1px; }
+.yadda td.title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yadda tr.read { background: #f0f6fa; }
-.yadda tr.read td.title { opacity: 0.5; }
+.yadda tr.read.muted { background: #f8e9e8; }
+.yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
 .yadda tr.selected { background-color: #FDF3DA; }
 """
 
 @render = (state) ->
+  # Uncomment below and use F12 tool to see "state" structure
+  # window.s = state
+
+  if not state.revisions
+    return renderLoadingIndicator()
+
   normalizeState state
   revs = filterRevs(state, state.revisions)
   grevs = groupRevs(state, revs)
   installKeyboardShortcuts state, grevs
-  # Uncomment below and use F12 tool to see "state" structure
-  # window.s = state
+
   div className: 'yadda',
     style null, stylesheet
     div className: 'phui-navigation-shell phui-basic-nav',
@@ -376,4 +401,8 @@ stylesheet = """
           renderQueryList state
           renderRepoList state
         div className: 'phabricator-nav-content mlt mll mlr mlb',
-          renderTable state, grevs
+          if grevs.length == 0
+            div className: 'phui-info-view phui-info-severity-notice',
+              'No revision to show'
+          else
+            renderTable state, grevs

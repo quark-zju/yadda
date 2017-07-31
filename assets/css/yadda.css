@@ -12,16 +12,22 @@
   z-index: 10;
 }
 
+/* see https://secure.phabricator.com/uiexample/view/PHUIColorPalletteExample/
+ * for colors used in Phabricator */
+
 .yadda-editor .CodeMirror {
   height: calc(100% - 20px); /* make bottom-right "resize handler" visible */
-  border: 1px solid #cccccc;
+  border: 1px solid #95A6C5;
 }
+
+.yadda-editor .CodeMirror-selected { background: #DFE0E2; }
+.yadda-editor .CodeMirror-focused .CodeMirror-selected { background: #DAE7FF; }
 
 .yadda-root .hint-code-different {
   bottom: 8px;
   left: 8px;
   cursor: default;
-  color: #aaa;
+  color: #92969D;
   position: fixed;
   user-select: none;
   z-index: 9;
