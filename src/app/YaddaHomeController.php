@@ -8,6 +8,7 @@ final class YaddaHomeController extends PhabricatorController {
   public function handleRequest(AphrontRequest $request) {
     require_celerity_resource('javelin-request');
     require_celerity_resource('phabricator-keyboard-shortcut');
+    require_celerity_resource('phabricator-notification');
     require_celerity_resource('yadda-home', 'yadda');
     require_celerity_resource('yadda-css', 'yadda');
 
