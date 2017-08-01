@@ -12,11 +12,11 @@
 queries = [
   ['Unread', (revs, state) ->
     readMap = getReadMap()
-    revs.filter (r) -> parseInt(r.dateModified) > getDateRead(state, readMap, r)],
-  ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)],
-  ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)],
-  ['Authored', (revs, state) -> revs.filter (r) -> r.author == state.user],
-  ['All', (revs) -> revs],
+    revs.filter (r) -> parseInt(r.dateModified) > getDateRead(state, readMap, r)]
+  ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
+  ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)]
+  ['Authored', (revs, state) -> revs.filter (r) -> r.author == state.user]
+  ['All', (revs) -> revs]
 ]
 
 # Use selected query and repo to filter revisions
