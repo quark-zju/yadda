@@ -91,7 +91,7 @@ _init = ->
             e.toString(),
         content
         if code && code != yaddaDefaultCode
-          span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentionally, double click to restore to the default code.', '* customized'
+          span className: 'hint-code-different phui-font-fa fa-paw', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
 
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
@@ -128,7 +128,7 @@ _init = ->
   # Function to create the editor window
   popupEditor = ->
     if _editorWin && !_editorWin.closed
-      new JX.Notification().setContent('The editor window was open.').setDuration(3000).show()
+      new JX.Notification().setContent('The editor window was open.\n(hint: set localStorage.editorType to "plain" to use a plain editor)').setDuration(16000).show()
       return
     _editorWin = window.open('', '', 'width=600,height=800')
     _editorWin._parent = window
