@@ -1,5 +1,5 @@
 # This is a live CoffeeScript editor affecting the Yadda interface.
-# Code will be saved to localStorage automatically.
+# Code change will be sent to the main Yadda page which saves it to localStorage.
 #
 # The entry point is "@render(state)" which returns ReactElement.
 # See /conduit/method/yadda.query/ for what "state" contains. "state" is
