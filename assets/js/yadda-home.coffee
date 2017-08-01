@@ -128,7 +128,12 @@ _init = ->
     target = doc.querySelector '.editor'
     target.value = state.code || yaddaDefaultCode
     target.addEventListener 'input', (e) ->
-      state.code = e.target.value.replace(/\t/g, '  ')
+      try
+        state.code = e.target.value.replace(/\t/g, '  ')
+      catch
+        # localStorage could be unavailable if parent window is closed
+        target.style.backgroundColor = '#f7e2d4'
+        doc.title = '(Disconnected)'
 
   if JX.KeyboardShortcut
     k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
