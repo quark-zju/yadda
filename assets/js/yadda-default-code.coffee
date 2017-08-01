@@ -19,6 +19,17 @@ queries = [
   ['All', (revs) -> revs]
 ]
 
+sortKeyFunctions = [
+  ['updated', (revs, state) -> _.max(revs.map (r) -> parseInt(r.dateModified))]
+  ['created', (revs, state) -> _.min(revs.map (r) -> parseInt(r.dateCreated))]
+  ['author', (revs, state) -> _.min(revs.map (r) -> [r.author, parseInt(r.id)])]
+  ['title', (revs, state) -> _.min(revs.map (r) -> r.title)]
+  ['stack size', (revs, state) -> revs.length]
+  ['activity count', (revs, state) -> _.sum(revs.map (r) -> r.actions.filter((x) -> parseInt(x.dateCreated) > parseInt(r.dateCreated)).length)]
+  ['phabricator status', (revs, state) -> _.sortedUniq(revs.map (r) -> r.status)]
+  ['line count', (revs, state) -> _.sum(revs.map (r) -> parseInt(r.lineCount))]
+]
+
 # Use selected query and repo to filter revisions
 filterRevs = (state) ->
   revs = state.revisions
@@ -41,13 +52,15 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
   getDep = _.memoize((revId) ->
     _.min(byId[revId].dependsOn.map((i) -> getDep(i))) || revId)
   gmap = _.groupBy(revs, (r) -> getDep(r.id))
-  # for series, sort by date
-  groupSortKey = (revs) ->
-    -_.max(revs.map((r) -> parseInt(r.dateModified)))
+  # for series, use selected sort function
+  entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
+  groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
   # within a series, sort by id
   singleSortKey = (r) -> -parseInt(r.id)
-  _.map(_.sortBy(_.values(gmap), groupSortKey), (revs) ->
-    _.sortBy(revs, singleSortKey))
+  gsorted = _.sortBy(_.values(gmap), (revs) -> groupSortKey(revs, state))
+  if state.activeSortDirection == -1
+    gsorted = _.reverse(gsorted)
+  gsorted.map (revs) -> _.sortBy(revs, singleSortKey)
 
 # Get repo callsigns, plus "All", sort them reasonably (shortest first)
 getRepos = (state) ->
@@ -99,6 +112,10 @@ normalizeState = (state) ->
     syncProperty 'activeQuery', queries[0][0]
   if not state.activeRepo
     syncProperty 'activeRepo', getRepos(state)[0]
+  if not state.activeSortKey
+    syncProperty 'activeSortKey', sortKeyFunctions[0][0]
+  if not state.activeSortDirection
+    syncProperty 'activeSortDirection', -1
   if not state.checked
     syncProperty 'checked', {}
   if not state.currRevs
@@ -255,6 +272,15 @@ describeAction = (action) ->
       desc += ": #{action.comment}"
   desc
 
+# Change activeSortKey and activeSortDirection within the given cycle
+cycleSortKeys = (state, sortKeys) ->
+  i = _.indexOf(sortKeys, state.activeSortKey)
+  if i == -1 || state.activeSortDirection != -1
+    state.activeSortKey = sortKeys[(i + 1) % sortKeys.length]
+    state.activeSortDirection = -1
+  else
+    state.activeSortDirection = 1
+
 # React elements
 {a, button, div, input, li, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
@@ -313,13 +339,20 @@ renderTable = (state, grevs) ->
   table className: 'aphront-table-view',
     thead null,
       tr null,
-        th style: {width: 4, padding: '8px 0px'} # selection indicator
-        th style: {width: 28, padding: '8px 0px'} # profile
-        th null, 'Revision'
-        th style: {width: 272}, 'Activities'
-        th style: {width: 50, textAlign: 'right'}, 'Size'
-        th style: {width: 90}, 'Updated'
-        th style: {width: 28, padding: '8px 0px'} # checkbox
+        # selection indicator
+        th style: {width: 4, padding: '8px 0px'}
+        # profile
+        th style: {width: 28, padding: '8px 0px'}, onClick: -> cycleSortKeys state, ['author'], title: 'Author'
+        th onClick: (-> cycleSortKeys state, ['title', 'stack size']), 'Revision'
+        if state.activeSortKey == 'phabricator status'
+          th style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
+        th style: {width: 272}, onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
+        th style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
+        if state.activeSortKey == 'created'
+          th style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
+        th style: {width: 90}, onClick: (-> cycleSortKeys state, ['updated', 'created']), 'Updated'
+        # checkbox
+        th style: {width: 28, padding: '8px 0px'}
     grevs.map (subgrevs, i) ->
       lastAuthor = null # dedup same author
       tbody key: i,
@@ -342,6 +375,8 @@ renderTable = (state, grevs) ->
               strong null, "D#{r.id} "
               a href: "/D#{r.id}",
                 strong null, r.title
+            if state.activeSortKey == 'phabricator status'
+              td className: "phab-status #{r.status.toLowerCase().replace(/ /g, '-')}", r.status
             td className: 'actions',
               renderActivities state, r, readActions, 'read'
               if readActions.length > 0 and unreadActions.length > 0
@@ -349,7 +384,7 @@ renderTable = (state, grevs) ->
               renderActivities state, r, unreadActions, 'unread'
             td className: 'size',
               span className: 'size', "#{lines} line#{lines > 1 && 's' || ''}"
-            [mtime].map (time, i) ->
+            (if state.activeSortKey == 'created' then [ctime, mtime] else [mtime]).map (time, i) ->
               time = moment.unix(time)
               td key: i, title: time.format('LLL'), className: 'time',
                 if time > ago
@@ -370,7 +405,8 @@ renderLoadingIndicator = ->
 
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
-.yadda table { table-layout:fixed; }
+.yadda table { table-layout: fixed; }
+.yadda thead { cursor: default; }
 .yadda td input { display: inline-block; vertical-align: middle; margin: 3px 5px; }
 .yadda td.selected, .yadda td.not-selected { padding: 0px 2px; }
 .yadda td.selected { background: #3498db; }
@@ -390,6 +426,9 @@ stylesheet = """
 .yadda tr.read.muted { background: #f8e9e8; }
 .yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
 .yadda tr.selected { background-color: #FDF3DA; }
+.yadda .table-bottom-info { margin: 16px 0; display: block; color: #74777D; }
+.yadda .phab-status.accepted { color: #139543 }
+.yadda .phab-status.needs-revision { color: #c0392b }
 """
 
 @render = (state) ->
@@ -416,4 +455,6 @@ stylesheet = """
             div className: 'phui-info-view phui-info-severity-notice',
               'No revision to show'
           else
-            renderTable state, grevs
+            div null,
+              renderTable state, grevs
+              span className: 'table-bottom-info', "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. Last update: #{state.updatedAt.calendar()}."
