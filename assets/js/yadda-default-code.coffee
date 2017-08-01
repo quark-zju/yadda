@@ -11,7 +11,7 @@
 # Change this to affect the navigation side bar
 queries = [
   ['Unread', (revs, state) ->
-    readMap = getReadMap()
+    readMap = state.readMap
     revs.filter (r) -> parseInt(r.dateModified) > getDateRead(state, readMap, r)]
   ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
   ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)]
@@ -68,25 +68,19 @@ getRepos = (state) ->
   repos = _.sortBy(repos, (r) -> [r == 'All', r.length, r])
 
 # Mark as read - record dateModified
-getReadMap = -> # {id: dateModified}
-  result = {}
-  try
-    result = JSON.parse(localStorage['revRead'])
-  result
-
 markAsRead = (state, revIds, markDate = null) ->
-  marked = getReadMap()
+  marked = state.readMap
   revMap = _.keyBy(state.revisions, (r) -> r.id)
   # remove closed revisions
   marked = _.pickBy(marked, (d, id) -> revMap[id])
-  # read dateModified
+  # update selected (revIds) entries
   revIds.forEach (id) ->
     if revMap[id]
       if markDate is null
         marked[id] = parseInt(revMap[id].dateModified)
       else
         marked[id] = markDate
-  localStorage['revRead'] = JSON.stringify(marked)
+  state.readMap = marked
 
 # Get timestamp of last "marked read" or commented
 getDateRead = (state, readMap, rev) ->
@@ -105,10 +99,12 @@ normalizeState = (state) ->
     syncProperty 'activeSortKey', sortKeyFunctions[0][0]
   if not state.activeSortDirection
     syncProperty 'activeSortDirection', -1
-  if not state.checked
-    syncProperty 'checked', {}
   if not state.currRevs
     syncProperty 'currRevs', []
+  if not state.readMap
+    syncProperty 'readMap', {}
+  if not state.checked
+    syncProperty 'checked', {}
 
 # Make selected rows visible
 scrollIntoView = ->
@@ -162,8 +158,8 @@ installKeyboardShortcuts = (state, grevs) ->
     (state.keySelAll = new JX.KeyboardShortcut(['*'], 'Select all revision in the current view.')).register()
   if not state.keyToggle?
     k = (new JX.KeyboardShortcut(['x'], 'Toggle checkboxes for selected revisions.')).setHandler ->
-      value = not ((state.currRevs || []).some (r) -> state.checked[r])
       checked = state.checked
+      value = not ((state.currRevs || []).some (r) -> checked[r])
       (state.currRevs || []).forEach (r) -> checked[r] = value
       state.checked = checked
     (state.keyToggle = k).register()
@@ -324,7 +320,7 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
 renderTable = (state, grevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
   currRevs = _.keyBy(state.currRevs)
-  readMap = getReadMap() # {id: dateModified}
+  readMap = state.readMap # {id: dateModified}
   checked = state.checked
   table className: 'aphront-table-view',
     thead null,
