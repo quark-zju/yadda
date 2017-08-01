@@ -1,11 +1,12 @@
 # This is a live CoffeeScript editor affecting the Yadda interface.
 # Code change will be sent to the main Yadda page which saves it to localStorage.
 #
-# The entry point is "@render(state)" which returns ReactElement.
-# See /conduit/method/yadda.query/ for what "state" contains. "state" is
-# refreshed periodically.
+# The entry point is "@render(state)" which returns ReactElement. The most
+# interesting information is "state.revisions". See /conduit/method/yadda.query
+# for what "state.revisions" look like. The "yadda.query" query will be called
+# to update "state" periodically.
 #
-# LoDash, Moment.js, React.js and Javelin are available.
+# Javascript libraries LoDash, Moment.js, React.js and Javelin are available.
 
 # Pre-defined queries
 # Change this to affect the navigation side bar
