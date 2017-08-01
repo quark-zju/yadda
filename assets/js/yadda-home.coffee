@@ -7,8 +7,6 @@
 # @requires react-dom
 ###
 
-_codeKey = 'yaddaCode'
-_profileKey = 'prof'
 redraw = -> return
 
 state =
@@ -186,7 +184,7 @@ _init = ->
       useTextarea()
 
   # The only way to access the editor is the "~" key.
-  if JX.KeyboardShortcut
+  if JX && JX.KeyboardShortcut
     k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
     k.setHandler popupEditor
     k.register()
