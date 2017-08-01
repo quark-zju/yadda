@@ -14,17 +14,22 @@ redraw = -> return
 state =
   # define a property that syncs from localStorage
   defineSyncedProperty: (name, fallback=null) ->
+    if _.isString(fallback)
+      loads = dumps = (x) -> x
+    else
+      loads = JSON.parse
+      dumps = JSON.stringify
     Object.defineProperty state, name,
       enumerable: false, configurable: false
       get: ->
         try
-          return JSON.parse(localStorage[name]) || fallback
+          return loads(localStorage[name]) || fallback
         fallback
       set: (v) ->
         if v == fallback
           localStorage.removeItem name
         else
-          localStorage[name] = JSON.stringify(v)
+          localStorage[name] = dumps(v)
         redraw()
 
 _init = ->
@@ -40,8 +45,7 @@ _init = ->
     req.send()
 
   _cached = {}
-  _compile = -> # compile state.code, return [scope, error]
-    code = state.code
+  _compile = (code) -> # compile code, return [scope, error]
     if _cached.code != code
       try
         bare = CoffeeScript.compile(code, bare: true)
@@ -62,9 +66,10 @@ _init = ->
         state.code = yaddaDefaultCode
 
     render: ->
+      code = state.code
       content = null
       errors = []
-      [scope, err] = _compile()
+      [scope, err] = _compile(code)
       if err
         errors.push err
 
@@ -81,7 +86,7 @@ _init = ->
           div key: i, className: 'phui-info-view phui-info-severity-warning', title: e.stack,
             e.toString(),
         content
-        if state.code && state.code != yaddaDefaultCode
+        if code && code != yaddaDefaultCode
           span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentionally, double click to restore to the default code.', '* customized'
 
   element = React.createElement(Root)

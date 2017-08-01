@@ -325,6 +325,7 @@ renderTable = (state, grevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
   currRevs = _.keyBy(state.currRevs)
   readMap = getReadMap() # {id: dateModified}
+  checked = state.checked
   table className: 'aphront-table-view',
     thead null,
       tr null,
@@ -354,7 +355,7 @@ renderTable = (state, grevs) ->
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
-          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{state.checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
+          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'}"
             td null,
               if r.author != lastAuthor
@@ -381,7 +382,7 @@ renderTable = (state, grevs) ->
                 else
                   time.format('MMM D')
             td null,
-              input type: 'checkbox', checked: (state.checked[r.id] || false), onChange: (e) ->
+              input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
                 checked = state.checked
                 checked[r.id] = !checked[r.id]
                 state.checked = checked
