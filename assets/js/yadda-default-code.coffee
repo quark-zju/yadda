@@ -83,12 +83,26 @@ getDateRead = (state, readMap, rev) ->
 
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
-  if not state.activeQuery?
-    state.activeQuery = localStorage['activeQuery'] || queries[0][0]
-  if not state.activeRepo?
-    state.activeRepo = localStorage['activeRepo'] || getRepos(state)[0]
-  if not state.checked?
-    state.checked = {}
+  # define a property on state which syncs to localStorage
+  syncProperty = (name, fallback=null) ->
+    Object.defineProperty state, name,
+      enumerable: false, configurable: false
+      get: ->
+        try
+          return JSON.parse(localStorage[name]) || fallback
+        fallback
+      set: (v) ->
+        localStorage[name] = JSON.stringify(v)
+        redraw()
+
+  if not state.activeQuery
+    syncProperty 'activeQuery', queries[0][0]
+  if not state.activeRepo
+    syncProperty 'activeRepo', getRepos(state)[0]
+  if not state.checked
+    syncProperty 'checked', {}
+  if not state.currRevs
+    syncProperty 'currRevs', []
 
 # Make selected rows visible
 scrollIntoView = ->
@@ -142,9 +156,10 @@ installKeyboardShortcuts = (state, grevs) ->
     (state.keySelAll = new JX.KeyboardShortcut(['*'], 'Select all revision in the current view.')).register()
   if not state.keyToggle?
     k = (new JX.KeyboardShortcut(['x'], 'Toggle checkboxes for selected revisions.')).setHandler ->
-      checked = not ((state.currRevs || []).some (r) -> state.checked[r])
-      (state.currRevs || []).forEach (r) -> state.checked[r] = checked
-      state.set()
+      value = not ((state.currRevs || []).some (r) -> state.checked[r])
+      checked = state.checked
+      (state.currRevs || []).forEach (r) -> checked[r] = value
+      state.checked = checked
     (state.keyToggle = k).register()
   if not state.keyOpen?
     k = (new JX.KeyboardShortcut(['o'], 'Open one of selected revisions in a new tab.')).setHandler ->
@@ -159,17 +174,17 @@ installKeyboardShortcuts = (state, grevs) ->
   if not state.keyMarkRead?
     k = (new JX.KeyboardShortcut(['a'], 'Archive revisions with checkbox ticked (mark as read).')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked))
-      state.set 'checked', {}
+      state.checked = {}
     (state.keyMarkRead = k).register()
   if not state.keyMarkReadForever?
     k = (new JX.KeyboardShortcut(['m'], 'Mute revisions with checkbox ticked (mark as read forever).')).setHandler ->
-      markAsRead state, _.keys(_.pickBy(state.checked)), _muteDate 
-      state.set 'checked', {}
+      markAsRead state, _.keys(_.pickBy(state.checked)), _muteDate
+      state.checked = {}
     (state.keyMarkReadForever = k).register()
   if not state.keyMarkUnread?
     k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with checkbox ticked as not read.')).setHandler ->
       markAsRead state, _.keys(_.pickBy(state.checked)), 0
-      state.set 'checked', {}
+      state.checked = {}
     (state.keyMarkUnread = k).register()
   if not state.keyReload?
     k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
@@ -204,15 +219,15 @@ installKeyboardShortcuts = (state, grevs) ->
     next.setHandler ->
       revIds = getRevIds(single)
       i = getIndex(revIds)
-      state.set 'currRevs', revIds[_.min([i + 1, revIds.length - 1])] || []
+      state.currRevs = revIds[_.min([i + 1, revIds.length - 1])] || []
       setTimeout scrollIntoView, 100
     prev.setHandler ->
       revIds = getRevIds(single)
       i = getIndex(revIds)
-      state.set 'currRevs', revIds[_.max([i - 1, 0])] || []
+      state.currRevs = revIds[_.max([i - 1, 0])] || []
       setTimeout scrollIntoView, 100
   state.keySelAll.setHandler ->
-    state.set 'currRevs', _.flatten(_.values(grevs)).map(toId)
+    state.currRevs = _.flatten(_.values(grevs)).map(toId)
 
 # Transaction to human readable text
 describeAction = (action) ->
@@ -251,7 +266,7 @@ renderQueryList = (state) ->
       name = q[0]
       selected = (state.activeQuery == name)
       li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
-        a className: 'phui-list-item-href', href: '#', onClick: (-> state.set 'activeQuery', name; localStorage['activeQuery'] = name),
+        a className: 'phui-list-item-href', href: '#', onClick: (-> state.activeQuery = name),
           span className: 'phui-list-item-name', name
 
 renderRepoList = (state) ->
@@ -262,7 +277,7 @@ renderRepoList = (state) ->
     repos.map (name, i) ->
       selected = (state.activeRepo == name)
       li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
-        a className: 'phui-list-item-href', href: '#', onClick: (-> state.set 'activeRepo', name; localStorage['activeRepo'] = name),
+        a className: 'phui-list-item-href', href: '#', onClick: (-> state.activeRepo = name),
           span className: 'phui-list-item-name', name
 
 renderProfile = (state, username, opts = {}) ->
@@ -293,7 +308,7 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
 
 renderTable = (state, grevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
-  currRevs = _.keyBy(state.currRevs || [])
+  currRevs = _.keyBy(state.currRevs)
   readMap = getReadMap() # {id: dateModified}
   table className: 'aphront-table-view',
     thead null,
@@ -317,7 +332,7 @@ renderTable = (state, grevs) ->
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
-          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{state.checked[r.id] && 'selected'}", onClick: (-> state.set 'currRevs', [r.id]),
+          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{state.checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'}"
             td null,
               if r.author != lastAuthor
@@ -343,8 +358,9 @@ renderTable = (state, grevs) ->
                   time.format('MMM D')
             td null,
               input type: 'checkbox', checked: (state.checked[r.id] || false), onChange: (e) ->
-                state.checked[r.id] = !state.checked[r.id]
-                state.set()
+                checked = state.checked
+                checked[r.id] = !checked[r.id]
+                state.checked = checked
                 e.target.blur()
 
 renderLoadingIndicator = ->
