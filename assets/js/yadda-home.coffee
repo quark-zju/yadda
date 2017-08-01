@@ -94,6 +94,7 @@ _init = ->
         state.revisions = r.result.revisions
         state.user = r.result.user
         state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
+        state.updatedAt = moment()
         redraw()
 
   _tick = 0
@@ -102,6 +103,7 @@ _init = ->
       _tick = 0 # refresh when the page gets focused back
     else
       if _tick == 0
+        redraw() # take localStorage changes that are possibly made by other tabs
         refresh()
       _tick = (_tick + 1) % 150 # 2.5 minutes
   _refreshTick()
