@@ -12,11 +12,15 @@
 }
 
 .yadda-root .hint-code-different {
-  bottom: 8px;
-  left: 8px;
   cursor: default;
-  color: #92969D;
-  position: fixed;
+  opacity: 0.3;
   user-select: none;
   z-index: 9;
+  position: absolute;
+  margin-top: -32px;
+  right: 24px;
+}
+
+.yadda-root .hint-code-different:hover {
+  opacity: 0.6;
 }
