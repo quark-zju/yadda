@@ -11,13 +11,9 @@
 
 _codeKey = 'yaddaCode'
 _profileKey = 'prof'
-_redraw = -> return
+redraw = -> return
 
-state =
-  set: (name, value) ->
-    if name
-      state[name] = value
-    _redraw()
+state = {}
 
 _codemirrorOpts =
   mode: 'coffeescript'
@@ -59,9 +55,10 @@ _init = ->
     handleCodeRest: ->
       if not confirm('Do you want to reset to the default code? This cannot be undone.')
         return
-      state.set 'code', yaddaDefaultCode
+      state.code = yaddaDefaultCode
       localStorage.removeItem(_codeKey)
       document.querySelectorAll('.yadda-editor').forEach((e) -> e.style.display = 'none')
+      redraw()
 
     render: ->
       content = null
@@ -89,7 +86,7 @@ _init = ->
   state.code = (localStorage[_codeKey] || yaddaDefaultCode).replace(/\t/g, '  ')
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
-  _redraw = -> node.forceUpdate()
+  redraw = -> node.forceUpdate()
 
   refresh = ->
     _request '/api/yadda.query', null, (r) ->
@@ -97,7 +94,7 @@ _init = ->
         state.revisions = r.result.revisions
         state.user = r.result.user
         state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
-        _redraw()
+        redraw()
 
   _tick = 0
   _refreshTick = ->
@@ -118,7 +115,8 @@ _init = ->
     editorOpts = _.extend({value: state.code}, _codemirrorOpts)
     editor = CodeMirror target, editorOpts
     editor.on 'change', (editor) =>
-      state.set 'code', editor.getValue().replace(/\t/g, '  ')
+      state.code = editor.getValue().replace(/\t/g, '  ')
+      redraw()
     initEditor = -> return # no need to init again
 
   if JX.KeyboardShortcut
