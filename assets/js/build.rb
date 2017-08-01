@@ -30,8 +30,6 @@ File.open('yadda-app.min.js', 'w') do |f|
   %w[
     ../vendor/react/react.min.js
     ../vendor/react/react-dom.min.js
-    ../vendor/codemirror/codemirror.min.js
-    ../vendor/codemirror/mode/coffeescript/coffeescript.min.js
   ].each do |path|
     f.write(File.read(path))
   end

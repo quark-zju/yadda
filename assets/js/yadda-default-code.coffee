@@ -1,5 +1,5 @@
 # This is a live CoffeeScript editor affecting the Yadda interface.
-# Code will be saved to localStorage automatically if compiles.
+# Code will be saved to localStorage automatically.
 #
 # The entry point is "@render(state)" which returns ReactElement.
 # See /conduit/method/yadda.query/ for what "state" contains. "state" is
@@ -96,18 +96,7 @@ getDateRead = (state, readMap, rev) ->
 
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
-  # define a property on state which syncs to localStorage
-  syncProperty = (name, fallback=null) ->
-    Object.defineProperty state, name,
-      enumerable: false, configurable: false
-      get: ->
-        try
-          return JSON.parse(localStorage[name]) || fallback
-        fallback
-      set: (v) ->
-        localStorage[name] = JSON.stringify(v)
-        redraw()
-
+  syncProperty = state.defineSyncedProperty
   if not state.activeQuery
     syncProperty 'activeQuery', queries[0][0]
   if not state.activeRepo

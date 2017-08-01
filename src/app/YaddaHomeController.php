@@ -16,12 +16,7 @@ final class YaddaHomeController extends PhabricatorController {
     $title = pht('Yadda');
     $page = $this->newPage()->setTitle($title);
     $root = phutil_tag_div('yadda-root');
-    $editor = phutil_tag('div', array(
-      'class' => 'yadda-editor',
-      'style' => 'display: none',
-    ));
     $page->appendChild($root);
-    $page->appendChild($editor);
     return $page;
   }
 }

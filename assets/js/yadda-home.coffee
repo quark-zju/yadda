@@ -1,7 +1,5 @@
 ###*
 # @provides yadda-home
-# @requires codemirror
-# @requires codemirror-coffeescript
 # @requires coffeescript
 # @requires lodash
 # @requires moment
@@ -13,17 +11,24 @@ _codeKey = 'yaddaCode'
 _profileKey = 'prof'
 redraw = -> return
 
-state = {}
-
-_codemirrorOpts =
-  mode: 'coffeescript'
-  lineNumbers: true
-  tabSize: 2
-  indentWithTabs: false
-  lineNumbers: true
+state =
+  # define a property that syncs from localStorage
+  defineSyncedProperty: (name, fallback=null) ->
+    Object.defineProperty state, name,
+      enumerable: false, configurable: false
+      get: ->
+        try
+          return JSON.parse(localStorage[name]) || fallback
+        fallback
+      set: (v) ->
+        if v == fallback
+          localStorage.removeItem name
+        else
+          localStorage[name] = JSON.stringify(v)
+        redraw()
 
 _init = ->
-  {div, span} = React.DOM
+  state.defineSyncedProperty 'code', yaddaDefaultCode
 
   _request = (path, data, callback) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
@@ -36,29 +41,25 @@ _init = ->
 
   _cached = {}
   _compile = -> # compile state.code, return [scope, error]
-    if _cached.code != state.code
+    code = state.code
+    if _cached.code != code
       try
-        bare = CoffeeScript.compile(state.code, bare: true)
+        bare = CoffeeScript.compile(code, bare: true)
         scope = {}
         code = "(function() { #{bare} }).call(scope);"
         eval code
-        _cached.code = state.code
-        if state.code != yaddaDefaultCode
-          localStorage[_codeKey] = state.code
+        _cached.code = code
       catch err
         if __DEV__
           window.err = err
       _cached.scope = scope
     return [(_cached.scope || {}), err]
 
+  {div, span} = React.DOM
   class Root extends React.Component
     handleCodeRest: ->
-      if not confirm('Do you want to reset to the default code? This cannot be undone.')
-        return
-      state.code = yaddaDefaultCode
-      localStorage.removeItem(_codeKey)
-      document.querySelectorAll('.yadda-editor').forEach((e) -> e.style.display = 'none')
-      redraw()
+      if confirm('Do you want to reset to the default code? This cannot be undone.')
+        state.code = yaddaDefaultCode
 
     render: ->
       content = null
@@ -83,7 +84,6 @@ _init = ->
         if state.code && state.code != yaddaDefaultCode
           span className: 'hint-code-different', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentionally, double click to restore to the default code.', '* customized'
 
-  state.code = (localStorage[_codeKey] || yaddaDefaultCode).replace(/\t/g, '  ')
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
   redraw = -> node.forceUpdate()
@@ -109,27 +109,23 @@ _init = ->
   _refreshTick()
   setInterval _refreshTick, 1000
 
-  initEditor = (target) ->
-    target.style.left = '30px'
-    target.style.bottom = '30px'
-    target.style.width = '500px'
-    target.style.height = "#{window.innerHeight * 3 / 5}px"
-    editorOpts = _.extend({value: state.code}, _codemirrorOpts)
-    editor = CodeMirror target, editorOpts
-    editor.on 'change', (editor) =>
-      state.code = editor.getValue().replace(/\t/g, '  ')
-      redraw()
-    initEditor = -> return # no need to init again
+  _editorWin = null
+  initEditor = ->
+    if not _editorWin || _editorWin.closed
+      _editorWin = window.open('', '', 'width=400,height=700')
+    doc = _editorWin.document
+    doc.head.innerHTML = '''
+    <title>Yadda Editor</title>
+    '''
+    doc.body.innerHTML = '<textarea class="editor" spellcheck="false" style="height: 100%; width: 100%;"></textarea>'
+    target = doc.querySelector '.editor'
+    target.value = state.code || yaddaDefaultCode
+    target.addEventListener 'input', (e) ->
+      state.code = e.target.value.replace(/\t/g, '  ')
 
   if JX.KeyboardShortcut
-    k = new JX.KeyboardShortcut(['~'], 'Show live code editor.')
-    k.setHandler ->
-      target = document.querySelector('.yadda-editor')
-      if target.style.display == 'none'
-        target.style.display = ''
-        initEditor target
-      else
-        target.style.display = 'none'
+    k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
+    k.setHandler initEditor
     k.register()
 
   if __DEV__
