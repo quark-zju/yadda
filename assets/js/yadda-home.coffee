@@ -47,17 +47,19 @@ _init = ->
   _cached = {}
   _compile = (code) -> # compile code, return [scope, error]
     if _cached.code != code
+      _cached.code = code
       try
         bare = CoffeeScript.compile(code, bare: true)
         scope = {}
         code = "(function() { #{bare} }).call(scope);"
         eval code
-        _cached.code = code
+        _cached.err = null
       catch err
         if __DEV__
           window.err = err
+        _cached.err = err
       _cached.scope = scope
-    return [(_cached.scope || {}), err]
+    return [(_cached.scope || {}), _cached.err]
 
   {div, span} = React.DOM
   class Root extends React.Component
