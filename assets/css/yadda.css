@@ -1,6 +1,5 @@
 /**
  * @provides yadda-css
- * @requires codemirror-css
  */
 
 .yadda-editor {
@@ -11,17 +10,6 @@
   max-width: calc(100% - 60px);
   z-index: 10;
 }
-
-/* see https://secure.phabricator.com/uiexample/view/PHUIColorPalletteExample/
- * for colors used in Phabricator */
-
-.yadda-editor .CodeMirror {
-  height: calc(100% - 20px); /* make bottom-right "resize handler" visible */
-  border: 1px solid #95A6C5;
-}
-
-.yadda-editor .CodeMirror-selected { background: #DFE0E2; }
-.yadda-editor .CodeMirror-focused .CodeMirror-selected { background: #DAE7FF; }
 
 .yadda-root .hint-code-different {
   bottom: 8px;
