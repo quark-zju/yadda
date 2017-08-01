@@ -135,30 +135,55 @@ _init = ->
     doc = _editorWin.document
     doc.head.innerHTML = '''
     <title>Yadda Live Editor</title>
-    <style>html, body { padding: 0; margin: 0; overflow: hidden; }</style>
+    <style>html, body, div { padding: 0; margin: 0; overflow: hidden; }
+      .editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }</style>
     '''
-    doc.body.innerHTML = """
-    <textarea class="editor" spellcheck="false" wrap="soft" style="height: 100%; width: 100%; border: none; resize: none; white-space: pre;"></textarea>
-    """
-    # Execute javascript in that window by setting its body content directly,
-    # so closing this window won't cause event listeners etc. to lose for that
-    # window.
-    _editorWin.eval CoffeeScript.compile("""
-    editor = document.querySelector('.editor')
-    markAsDisconnect = ->
-      editor.readOnly = true
-      editor.style.backgroundColor = '#f7e2d4'
-      document.title = '(Disconnected)'
-    checkAlive = ->
-      if !_parent || _parent.closed
-        markAsDisconnect()
-    setInterval checkAlive, 1000
-    editor.addEventListener 'input', (e) ->
-      _parent.postMessage({'type': 'code-change', 'value': e.target.value.replace(/\t/g, '  ')}, #{JSON.stringify(window.location.origin)})
-    window.setCode = (code) ->
-      document.querySelector('.editor').value = code
-    """)
-    _editorWin.setCode state.code || yaddaDefaultCode
+    # Execute javascript in that window by "_editorWin.eval" so closing this
+    # window won't cause event listeners etc. to lose for that window.
+    runScript = (coffee) -> _editorWin.eval CoffeeScript.compile(coffee)
+    runScript """
+      markAsDisconnect = -> document.title = '(Disconnected)'
+      window.postCode = (code) -> _parent.postMessage({'type': 'code-change', 'value': code}, #{JSON.stringify(window.location.origin)})
+      checkAlive = ->
+        if !_parent || _parent.closed
+          markAsDisconnect()
+      setInterval checkAlive, 1000
+      """
+
+    useTextarea = ->
+      doc.body.innerHTML = '<textarea class="editor" spellcheck="false" wrap="soft" style="border: none; resize: none; white-space: pre;"></textarea>'
+      runScript """
+        editor = document.querySelector('.editor')
+        editor.addEventListener 'input', (e) -> postCode e.target.value
+        window.setCode = (code) -> document.querySelector('.editor').value = code
+        """
+      _editorWin.setCode state.code || yaddaDefaultCode
+
+    useAce = ->
+      doc.body.innerHTML = '<div class="editor"></div>'
+      runScript """
+        editor = ace.edit document.querySelector('.editor')
+        editor.getSession().setOptions tabSize: 2, useSoftTabs: true
+        editor.getSession().setMode 'ace/mode/coffee'
+        editor.setSelectionStyle 'text'
+        editor.setShowPrintMargin false
+        editor.getSession().on 'change', (e) -> window.postCode editor.getValue()
+        window.setCode = (code) ->
+          editor.setValue.bind(editor)(code)
+          editor.clearSelection()
+        window.editor = editor
+        """
+      _editorWin.setCode state.code || yaddaDefaultCode
+
+    # Load ACE editor (best-effort)
+    if (localStorage['editorType'] || 'ace') == 'ace'
+      script = doc.createElement('script')
+      script.onload = useAce
+      script.onerror = useTextarea
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/ace/1.2.8/ace.js'
+      doc.head.appendChild(script)
+    else
+      useTextarea()
 
   # The only way to access the editor is the "~" key.
   if JX.KeyboardShortcut
