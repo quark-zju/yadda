@@ -44,6 +44,7 @@ _init = ->
       req.setData(data)
     req.send()
 
+  _editorWin = null
   _cached = {}
   _compile = (code) -> # compile code, return [scope, error]
     if _cached.code != code
@@ -64,8 +65,9 @@ _init = ->
   {div, span} = React.DOM
   class Root extends React.Component
     handleCodeRest: ->
-      if confirm('Do you want to reset to the default code? This cannot be undone.')
+      if confirm('Do you want to remove customization and use the default Yadda UI code? This cannot be undone.')
         state.code = yaddaDefaultCode
+        _editorWin?.setCode yaddaDefaultCode # NOTE: not working across reloads
 
     render: ->
       code = state.code
@@ -116,28 +118,52 @@ _init = ->
   _refreshTick()
   setInterval _refreshTick, 1000
 
-  _editorWin = null
-  initEditor = ->
-    if not _editorWin || _editorWin.closed
-      _editorWin = window.open('', '', 'width=400,height=700')
+  # Receive code change messages broadcasted from the code editor window.
+  # This works across reloads (document and the state here get lost).
+  _handleWindowMessage = (e) ->
+    if e.data.type == 'code-change'
+      state.code = e.data.value
+  window.addEventListener 'message', _handleWindowMessage, false
+
+  # Function to create the editor window
+  popupEditor = ->
+    if _editorWin && !_editorWin.closed
+      new JX.Notification().setContent('The editor window was open.').setDuration(3000).show()
+      return
+    _editorWin = window.open('', '', 'width=600,height=800')
+    _editorWin._parent = window
     doc = _editorWin.document
     doc.head.innerHTML = '''
-    <title>Yadda Editor</title>
+    <title>Yadda Live Editor</title>
+    <style>html, body { padding: 0; margin: 0; overflow: hidden; }</style>
     '''
-    doc.body.innerHTML = '<textarea class="editor" spellcheck="false" style="height: 100%; width: 100%;"></textarea>'
-    target = doc.querySelector '.editor'
-    target.value = state.code || yaddaDefaultCode
-    target.addEventListener 'input', (e) ->
-      try
-        state.code = e.target.value.replace(/\t/g, '  ')
-      catch
-        # localStorage could be unavailable if parent window is closed
-        target.style.backgroundColor = '#f7e2d4'
-        doc.title = '(Disconnected)'
+    doc.body.innerHTML = """
+    <textarea class="editor" spellcheck="false" wrap="soft" style="height: 100%; width: 100%; border: none; resize: none; white-space: pre;"></textarea>
+    """
+    # Execute javascript in that window by setting its body content directly,
+    # so closing this window won't cause event listeners etc. to lose for that
+    # window.
+    _editorWin.eval CoffeeScript.compile("""
+    editor = document.querySelector('.editor')
+    markAsDisconnect = ->
+      editor.readOnly = true
+      editor.style.backgroundColor = '#f7e2d4'
+      document.title = '(Disconnected)'
+    checkAlive = ->
+      if !_parent || _parent.closed
+        markAsDisconnect()
+    setInterval checkAlive, 1000
+    editor.addEventListener 'input', (e) ->
+      _parent.postMessage({'type': 'code-change', 'value': e.target.value.replace(/\t/g, '  ')}, #{JSON.stringify(window.location.origin)})
+    window.setCode = (code) ->
+      document.querySelector('.editor').value = code
+    """)
+    _editorWin.setCode state.code || yaddaDefaultCode
 
+  # The only way to access the editor is the "~" key.
   if JX.KeyboardShortcut
     k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
-    k.setHandler initEditor
+    k.setHandler popupEditor
     k.register()
 
   if __DEV__
