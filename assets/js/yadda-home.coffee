@@ -96,13 +96,24 @@ _init = ->
   redraw = -> node.forceUpdate()
 
   refresh = ->
-    _request '/api/yadda.query', null, (r) ->
-      if r.result
-        state.revisions = r.result.revisions
-        state.user = r.result.user
-        state.profileMap = _.keyBy(r.result.profiles, (p) -> p.userName)
-        state.updatedAt = moment()
-        redraw()
+    _processResult = (result) ->
+      state.revisions = result.revisions
+      state.user = result.user
+      state.profileMap = _.keyBy(result.profiles, (p) -> p.userName)
+      redraw()
+
+    stateElement = document.querySelector('.yadda-non-logged-in-state')
+    if stateElement
+      _processResult JSON.parse(stateElement.textContent)
+    else
+      _request '/api/yadda.query', null, (r) ->
+        if r.result
+          state.updatedAt = moment()
+          state.error = null
+          _processResult r.result
+        else
+          state.error = (r.error_info || 'Server does not return expected data')
+          redraw()
 
   _tick = 0
   _refreshTick = ->
