@@ -189,7 +189,7 @@ installKeyboardShortcuts = (state, grevs) ->
       markAsRead state, _.keys(_.pickBy(state.checked)), 0
       state.checked = {}
     (state.keyMarkUnread = k).register()
-  if not state.keyReload?
+  if state.user and not state.keyReload?
     k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
     (state.keyReload = k).register()
   if document.queryCommandSupported('copy')
@@ -385,10 +385,14 @@ renderTable = (state, grevs) ->
                 state.checked = checked
                 e.target.blur()
 
-renderLoadingIndicator = ->
-  div style: {textAlign: 'center', marginTop: 240, color: '#92969D'},
-    React.DOM.p null, 'Fetching data...'
-    React.DOM.progress style: {height: 10, width: 100}
+renderLoadingIndicator = (state) ->
+  if state.error
+    div className: 'phui-info-view phui-info-severity-error',
+      state.error
+  else
+    div style: {textAlign: 'center', marginTop: 240, color: '#92969D'},
+      React.DOM.p null, 'Fetching data...'
+      React.DOM.progress style: {height: 10, width: 100}
 
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
@@ -423,7 +427,7 @@ stylesheet = """
   # window.s = state
 
   if not state.revisions
-    return renderLoadingIndicator()
+    return renderLoadingIndicator(state)
 
   normalizeState state
   revs = filterRevs(state, state.revisions)
@@ -438,10 +442,16 @@ stylesheet = """
           renderQueryList state
           renderRepoList state
         div className: 'phabricator-nav-content mlt mll mlr mlb',
+          if state.error
+            div className: 'phui-info-view phui-info-severity-error',
+              state.error
           if grevs.length == 0
             div className: 'phui-info-view phui-info-severity-notice',
               'No revision to show'
           else
             div null,
               renderTable state, grevs
-              span className: 'table-bottom-info', "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. Last update: #{state.updatedAt.calendar()}."
+              span className: 'table-bottom-info',
+                "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
+                if state.updatedAt
+                  "Last update: #{state.updatedAt.calendar()}."

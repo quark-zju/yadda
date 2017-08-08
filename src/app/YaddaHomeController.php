@@ -17,6 +17,16 @@ final class YaddaHomeController extends PhabricatorController {
     $page = $this->newPage()->setTitle($title);
     $root = phutil_tag_div('yadda-root');
     $page->appendChild($root);
+    if ($viewer->getUserName() === null) {
+      // If not logged in, Conduit API cannot be used. Provide a static initial
+      // state in this case.
+      $state = YaddaQueryConduitAPIMethod::query($viewer, array());
+      $state_div = phutil_tag('div', array(
+        'class' => 'yadda-non-logged-in-state',
+        'style' => 'display: none',
+      ), phutil_json_encode($state));
+      $page->appendChild($state_div);
+    }
     return $page;
   }
 }

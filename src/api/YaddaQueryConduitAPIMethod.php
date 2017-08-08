@@ -114,13 +114,17 @@ EOT
     // Details of revisions
     $xactions_map = self::loadTransactions($viewer, $revisions, $profile_map);
     $depends_on_map = self::loadDependsOn($viewer, $revisions);
-    $ccs_map = id(new PhabricatorSubscribersQuery())
-      ->withObjectPHIDs(mpull($revisions, 'getPHID'))
-      ->execute();
-    $repos = id(new PhabricatorRepositoryQuery())
-      ->setViewer($viewer)
-      ->withPHIDs(mpull($revisions, 'getRepositoryPHID'))
-      ->execute();
+    $ccs_map = array();
+    $repos = array();
+    if ($revisions) { 
+      $ccs_map = id(new PhabricatorSubscribersQuery())
+        ->withObjectPHIDs(mpull($revisions, 'getPHID'))
+        ->execute();
+      $repos = id(new PhabricatorRepositoryQuery())
+        ->setViewer($viewer)
+        ->withPHIDs(mpull($revisions, 'getRepositoryPHID'))
+        ->execute();
+    }
     $phid_callsign_map = mpull($repos, 'getCallsign', 'getPHID');
 
     // Collect all author PHIDs and prepare to convert them to names
@@ -168,17 +172,26 @@ EOT
       );
     }
 
-    return array(
+    $result = array(
       'revisions' => $revision_descs,
       'profiles' => $profile_descs,
-      'user' => $viewer->getUserName(),
     );
+
+    if ($viewer->getUserName()) {
+      $result['user'] = $viewer->getUserName();
+    }
+
+    return $result;
   }
 
   static protected function loadTransactions(
     PhabricatorUser $viewer,
     array $revisions,
     array &$profile_map) { // return {$revision_id => [$action]}
+    if (!$revisions) {
+      return array();
+    }
+
     assert_instances_of($revisions, 'DifferentialRevision');
 
     $phid_revision_map = mpull($revisions, null, 'getPHID');
@@ -241,6 +254,9 @@ EOT
     PhabricatorUser $viewer,
     array $revisions) { // return {$revision_id => [$depends_on_id]}
     assert_instances_of($revisions, 'DifferentialRevision');
+    if (!$revisions) {
+      return array();
+    }
 
     $phid_revision_map = mpull($revisions, null, 'getPHID');
 
@@ -275,6 +291,9 @@ EOT
     PhabricatorUser $viewer,
     array $author_phids,
     array &$profile_map) { // return {$phid => $name}
+    if (!$author_phids) {
+      return array();
+    }
     $authors = id(new PhabricatorPeopleQuery())
       ->setViewer($viewer)
       ->needProfileImage(true)
