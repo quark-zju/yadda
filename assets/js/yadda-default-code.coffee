@@ -66,7 +66,9 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
 # Get repo callsigns, plus "All", sort them reasonably (shortest first)
 getRepos = (state) ->
   repos = _.uniq(state.revisions.map((r) -> r.callsign || 'All'))
-  repos = _.sortBy(repos, (r) -> [r == 'All', r.length, r])
+  if repos.length > 1 && _.indexOf(repos, 'All') == -1
+    repos.push 'All'
+  _.sortBy(repos, (r) -> [r == 'All', r.length, r])
 
 # Mark as read - record dateModified
 markAsRead = (state, revIds, markDate = null) ->
