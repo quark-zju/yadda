@@ -91,12 +91,18 @@ EOT
 
   protected function execute(ConduitAPIRequest $request) {
     $viewer = $request->getUser();
+    $ids = $request->getValue('revisionids', array());
+    return self::query($viewer, $ids);
+  }
+
+  static public function query(
+    PhabricatorUser $viewer,
+    array $revision_ids) {
     $query = id(new DifferentialRevisionQuery())
       ->setViewer($viewer)
       ->needReviewers(true);
-    $ids = $request->getValue('revisionids', array());
-    if ($ids) {
-      $query->withIDs($ids);
+    if ($revision_ids) {
+      $query->withIDs($revision_ids);
     } else {
       $query->withStatus(DifferentialRevisionQuery::STATUS_OPEN);
     }
@@ -106,8 +112,8 @@ EOT
     $profile_map = array();
 
     // Details of revisions
-    $xactions_map = $this->loadTransactions($viewer, $revisions, $profile_map);
-    $depends_on_map = $this->loadDependsOn($viewer, $revisions);
+    $xactions_map = self::loadTransactions($viewer, $revisions, $profile_map);
+    $depends_on_map = self::loadDependsOn($viewer, $revisions);
     $ccs_map = id(new PhabricatorSubscribersQuery())
       ->withObjectPHIDs(mpull($revisions, 'getPHID'))
       ->execute();
@@ -122,7 +128,7 @@ EOT
       mpull($revisions, 'getAuthorPHID'),
       array_mergev(mpull($revisions, 'getReviewerPHIDs')),
       array_mergev(array_values($ccs_map)));
-    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $profile_map);
+    $phid_author_map = self::loadAuthorNameMap($viewer, $phids, $profile_map);
     
     // Compound result for each revision
     $revision_descs = array();
@@ -142,9 +148,9 @@ EOT
         'testPlan'     => $revision->getTestPlan(),
         'lineCount'    => $revision->getLineCount(),
         'dependsOn'    => $depends_on_map[$id],
-        'reviewers'    => $this->mapPHIDstoNames(
+        'reviewers'    => self::mapPHIDstoNames(
           $phid_author_map, $revision->getReviewerPHIDs()),
-        'ccs'          => $this->mapPHIDstoNames(
+        'ccs'          => self::mapPHIDstoNames(
           $phid_author_map, idx($ccs_map, $phid, array())),
         'actions'      => $xactions_map[$id],
         'dateCreated'  => $revision->getDateCreated(),
@@ -169,7 +175,7 @@ EOT
     );
   }
 
-  protected function loadTransactions(
+  static protected function loadTransactions(
     PhabricatorUser $viewer,
     array $revisions,
     array &$profile_map) { // return {$revision_id => [$action]}
@@ -184,7 +190,7 @@ EOT
       ->execute();
 
     $phids = mpull($xactions, 'getAuthorPHID');
-    $phid_author_map = $this->loadAuthorNameMap($viewer, $phids, $profile_map);
+    $phid_author_map = self::loadAuthorNameMap($viewer, $phids, $profile_map);
     
     // Action keys could be: accept, reject, close, resign, abandon, reclaim,
     // reopen, accept, request-review, commandeer, plan-changes
@@ -231,7 +237,7 @@ EOT
     return $results;
   }
 
-  protected function loadDependsOn(
+  static protected function loadDependsOn(
     PhabricatorUser $viewer,
     array $revisions) { // return {$revision_id => [$depends_on_id]}
     assert_instances_of($revisions, 'DifferentialRevision');
@@ -265,7 +271,7 @@ EOT
     return $results;
   }
 
-  protected function loadAuthorNameMap(
+  static protected function loadAuthorNameMap(
     PhabricatorUser $viewer,
     array $author_phids,
     array &$profile_map) { // return {$phid => $name}
@@ -280,7 +286,7 @@ EOT
     return mpull($authors, 'getUserName', 'getPHID');
   }
 
-  protected function mapPHIDstoNames(array $phid_name_map, array $phids) {
+  static protected function mapPHIDstoNames(array $phid_name_map, array $phids) {
     $result = array();
     foreach ($phids as $phid) {
       $name = idx($phid_name_map, $phid);
