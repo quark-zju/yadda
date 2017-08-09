@@ -24,10 +24,11 @@ final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
 
 **Output**
 
-The output includes `revisions`, `profiles` and `user`. `revisions` contains
-user interactions (ex. comment, accept, reject, update). `profiles` contains
-metadata about users referred by `revisions`. `user` is the name of current
-user issuing the API request.
+The output includes `revisions`, `profiles`, `user` and `state`. `revisions`
+contains user interactions (ex. comment, accept, reject, update). `profiles`
+contains metadata about users referred by `revisions`. `user` is the name of
+current user issuing the API request. `state` is a string or `null` set by
+`yadda.setstate` associated to the current user.
 
 ```lang=json
 { "revisions":
@@ -60,7 +61,8 @@ user issuing the API request.
         "image": "http://phabricator.example.com/file/data/..." },
       { "userName": "bob", "realName": "Bob",
         "image": "http://phabricator.example.com/file/data/..." } ],
-  "user": "alice" }
+  "user": "alice",
+  "state": null }
 ```
 
 The `id` used in `revisions` are Differential Revision IDs that can be used
@@ -179,6 +181,7 @@ EOT
 
     if ($viewer->getUserName()) {
       $result['user'] = $viewer->getUserName();
+      $result['state'] = YaddaUserState::get($viewer);
     }
 
     return $result;
