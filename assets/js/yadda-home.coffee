@@ -62,7 +62,7 @@ _init = ->
 
   {div, span} = React.DOM
   class Root extends React.Component
-    handleCodeRest: ->
+    handleCodeReset: ->
       if confirm('Do you want to remove customization and use the default Yadda UI code? This cannot be undone.')
         state.code = yaddaDefaultCode
         _editorWin?.setCode yaddaDefaultCode # NOTE: not working across reloads
@@ -89,7 +89,7 @@ _init = ->
             e.toString(),
         content
         if code && code != yaddaDefaultCode
-          span className: 'hint-code-different phui-font-fa fa-paw', onDoubleClick: @handleCodeRest, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
+          span className: 'hint-code-different phui-font-fa fa-paw', onDoubleClick: @handleCodeReset, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
 
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
