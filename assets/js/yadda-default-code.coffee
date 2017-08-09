@@ -1,10 +1,14 @@
 # This is a live CoffeeScript editor affecting the Yadda interface.
-# Code change will be sent to the main Yadda page which saves it to localStorage.
+# Code change will be sent to the main Yadda page which saves it to localStorage
+# (and also to Phabricator, see below).
 #
 # The entry point is "@render(state)" which returns ReactElement. The most
 # interesting information is "state.revisions". See /conduit/method/yadda.query
 # for what "state.revisions" look like. The "yadda.query" query will be called
 # to update "state" periodically.
+#
+# If localStorage.sync is not set to "false", most states will be synchronized
+# with Phabricator so it works across multiple machines.
 #
 # Javascript libraries LoDash, Moment.js, React.js and Javelin are available.
 
@@ -81,6 +85,8 @@ markAsRead = (state, revIds, markDate = null) ->
     if revMap[id]
       if markDate is null
         marked[id] = parseInt(revMap[id].dateModified)
+      else if markDate == 0
+        delete marked["#{id}"]
       else
         marked[id] = markDate
   state.readMap = marked
@@ -94,20 +100,21 @@ getDateRead = (state, readMap, rev) ->
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
   syncProperty = state.defineSyncedProperty
+  syncRemotely = state.sync # if set, sync some state remotely
   if not state.activeQuery
-    syncProperty 'activeQuery', queries[0][0]
+    syncProperty 'activeQuery', queries[0][0], syncRemotely
   if not state.activeRepo
-    syncProperty 'activeRepo', getRepos(state)[0]
+    syncProperty 'activeRepo', getRepos(state)[0], syncRemotely
   if not state.activeSortKey
-    syncProperty 'activeSortKey', sortKeyFunctions[0][0]
+    syncProperty 'activeSortKey', sortKeyFunctions[0][0], syncRemotely
   if not state.activeSortDirection
-    syncProperty 'activeSortDirection', -1
+    syncProperty 'activeSortDirection', -1, syncRemotely
   if not state.currRevs
-    syncProperty 'currRevs', []
+    syncProperty 'currRevs', [] # do not sync remotely
   if not state.readMap
-    syncProperty 'readMap', {}
+    syncProperty 'readMap', {}, syncRemotely
   if not state.checked
-    syncProperty 'checked', {}
+    syncProperty 'checked', {} # do not sync remotely
 
 # Make selected rows visible
 scrollIntoView = ->
@@ -425,8 +432,8 @@ stylesheet = """
 """
 
 @render = (state) ->
-  # Uncomment below and use F12 tool to see "state" structure
-  # window.s = state
+  # Make it easier for debugging using F12 developer tools
+  window.state = state
 
   if not state.revisions
     return renderLoadingIndicator(state)
