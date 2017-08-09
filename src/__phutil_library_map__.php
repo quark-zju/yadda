@@ -13,6 +13,9 @@ phutil_register_library_map(array(
     'YaddaApplication' => 'app/YaddaApplication.php',
     'YaddaHomeController' => 'app/YaddaHomeController.php',
     'YaddaQueryConduitAPIMethod' => 'api/YaddaQueryConduitAPIMethod.php',
+    'YaddaSQLPatchList' => 'db/YaddaSQLPatchList.php',
+    'YaddaSetStateConduitAPIMethod' => 'api/YaddaSetStateConduitAPIMethod.php',
+    'YaddaUserState' => 'db/YaddaUserState.php',
   ),
   'function' => array(),
   'xmap' => array(
@@ -20,5 +23,8 @@ phutil_register_library_map(array(
     'YaddaApplication' => 'PhabricatorApplication',
     'YaddaHomeController' => 'PhabricatorController',
     'YaddaQueryConduitAPIMethod' => 'ConduitAPIMethod',
+    'YaddaSQLPatchList' => 'PhabricatorSQLPatchList',
+    'YaddaSetStateConduitAPIMethod' => 'ConduitAPIMethod',
+    'YaddaUserState' => 'PhabricatorLiskDAO',
   ),
 ));
