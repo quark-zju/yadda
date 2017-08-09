@@ -10,8 +10,11 @@
 redraw = -> return
 
 state =
-  # define a property that syncs from localStorage
-  defineSyncedProperty: (name, fallback=null) ->
+  # state that will be synchronized to remote periodically
+  remote: {updatedAt: 0}
+
+  # define a property that syncs with localStorage, optionally sync with remote
+  defineSyncedProperty: (name, fallback=null, remote=false) ->
     if _.isString(fallback)
       loads = dumps = (x) -> x
     else
@@ -20,18 +23,36 @@ state =
     Object.defineProperty state, name,
       enumerable: false, configurable: false
       get: ->
-        try
-          return loads(localStorage[name]) || fallback
-        fallback
+        v = null
+        # try remote first
+        if remote && state.remote[name]
+          v = state.remote[name]
+        # fallback to localStorage
+        if v == null || v == undefined
+          try
+            v = loads(localStorage[name])
+        # replace "null" or "undefined" (but not "false") to fallback
+        if v == null || v == undefined
+          v = fallback
+        v
       set: (v) ->
-        if v == fallback
+        if _.isEqual(v, fallback)
           localStorage.removeItem name
+          if remote && state.remote[name]
+            delete state.remote[name]
         else
           localStorage[name] = dumps(v)
+          if remote
+            state.remote[name] = v
+        if remote
+          state.remote.updatedAt = moment.now()
+
         redraw()
 
 _init = ->
-  state.defineSyncedProperty 'code', yaddaDefaultCode
+  # whether to sync remotely, default true. The option itself won't be synced.
+  state.defineSyncedProperty 'sync', true, false
+  state.defineSyncedProperty 'code', yaddaDefaultCode, state.sync
 
   _request = (path, data, callback) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
@@ -95,11 +116,27 @@ _init = ->
   node = ReactDOM.render element, document.querySelector('.yadda-root')
   redraw = -> node.forceUpdate()
 
+  _lastRemoteSync = state.remote.updatedAt
+  _syncTick = ->
+    if !state.user
+      return
+    remote = state.remote
+    if remote.updatedAt > _lastRemoteSync
+      _lastRemoteSync = remote.updatedAt
+      _request '/api/yadda.setstate', data: JSON.stringify(remote)
+  setInterval _syncTick, 2200
+
   refresh = ->
     _processResult = (result) ->
       state.revisions = result.revisions
       state.user = result.user
       state.profileMap = _.keyBy(result.profiles, (p) -> p.userName)
+      remote = null
+      try
+        remote = JSON.parse(result.state)
+      if remote && remote.updatedAt > state.remote.updatedAt
+        _lastRemoteSync = remote.updatedAt
+        state.remote = remote
       redraw()
 
     stateElement = document.querySelector('.yadda-non-logged-in-state')
