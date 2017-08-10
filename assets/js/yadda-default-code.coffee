@@ -17,7 +17,7 @@
 queries = [
   ['Unread', (revs, state) ->
     readMap = state.readMap
-    revs.filter (r) -> parseInt(r.dateModified) > getDateRead(state, readMap, r)]
+    revs.filter (r) -> getDateModified(r) > getDateRead(state, readMap, r)]
   ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
   ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)]
   ['Authored', (revs, state) -> revs.filter (r) -> r.author == state.user]
@@ -25,7 +25,7 @@ queries = [
 ]
 
 sortKeyFunctions = [
-  ['updated', (revs, state) -> _.max(revs.map (r) -> parseInt(r.dateModified))]
+  ['updated', (revs, state) -> _.max(revs.map (r) -> getDateModified(r))]
   ['created', (revs, state) -> _.min(revs.map (r) -> parseInt(r.dateCreated))]
   ['author', (revs, state) -> _.min(revs.map (r) -> [r.author, parseInt(r.id)])]
   ['title', (revs, state) -> _.min(revs.map (r) -> r.title)]
@@ -84,7 +84,7 @@ markAsRead = (state, revIds, markDate = null) ->
   revIds.forEach (id) ->
     if revMap[id]
       if markDate is null
-        marked[id] = parseInt(revMap[id].dateModified)
+        marked[id] = getDateModified(revMap[id])
       else if markDate == 0
         delete marked["#{id}"]
       else
@@ -96,6 +96,11 @@ getDateRead = (state, readMap, rev) ->
   commented = _.max(rev.actions.filter((x) -> x.author == state.user).map((x) -> parseInt(x.dateModified))) || -1
   marked = readMap[rev.id] || -1
   _.max([marked, commented])
+
+# Get timestamp of the last action of given revision
+getDateModified = (rev) ->
+  # cannot use rev.dateModified since diff property update will bump that without generation a transaction/action 
+  _.max(rev.actions.map((x) -> parseInt(x.dateModified))) || -1
 
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
@@ -353,7 +358,7 @@ renderTable = (state, grevs) ->
       lastAuthor = null # dedup same author
       tbody key: i,
         subgrevs.map (r) ->
-          mtime = parseInt(r.dateModified)
+          mtime = getDateModified(r)
           ctime = parseInt(r.dateCreated)
           lines = parseInt(r.lineCount)
           atime = getDateRead(state, readMap, r)
@@ -361,7 +366,7 @@ renderTable = (state, grevs) ->
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
-          tr key: r.id, className: "#{(atime >= parseInt(r.dateModified)) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
+          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'}"
             td null,
               if r.author != lastAuthor
