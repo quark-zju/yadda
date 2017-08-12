@@ -436,9 +436,10 @@ stylesheet = """
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
 .yadda .phab-status.needs-revision { color: #c0392b }
-.yadda .action-selector { height: 1.6em; margin: 16px 8px 0; float: right; }
+.yadda .action-selector { border: 0; border-radius: 0; width: 100%; }
 .yadda .yadda-content { margin-bottom: 16px }
-.device-desktop .action-selector { display: none; }
+.device-desktop .action-selector, .device-tablet .action-selector { float: right; width: 20px; margin: 0 0 -34px; height: 34px; padding: 0 16px; background-color: transparent; }
+.device-desktop .action-selector optgroup.filter { display: none; }
 .device-desktop .yadda-content { margin: 16px; }
 .device-desktop th.actions { width: 30%; }
 .device-tablet th.actions { width: 35%; }
@@ -473,6 +474,7 @@ stylesheet = """
           renderQueryList state
           renderRepoList state
         div className: 'phabricator-nav-content yadda-content',
+          renderActionSelector state
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
@@ -482,7 +484,6 @@ stylesheet = """
           else
             div null,
               renderTable state, grevs
-              renderActionSelector state
               span className: 'table-bottom-info',
                 span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
                   "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
@@ -498,20 +499,23 @@ renderActionSelector = (state) ->
       state.activeRepo = v[1..]
     else if v[0] == 'A'
       state[v[1..]].getHandler()()
+    else if v[0] == 'E'
+      popupEditor()
   checked = _.keys(_.pickBy(state.checked))
   select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
     option value: '+'
-    optgroup label: 'Queries',
+    optgroup className: 'filter', label: 'Queries',
       queries.map (q, i) ->
         name = q[0]
         selected = name == state.activeQuery
         option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
-    optgroup label: 'Repos',
+    optgroup className: 'filter', label: 'Repos',
       getRepos(state).map (name) ->
         selected = name == state.activeRepo
         option key: name, disabled: selected, value: "R#{name}", "#{name}#{selected && ' (*)' || ''}"
     if checked.length > 0
-      optgroup label: "Actions (#{checked.length} items)",
+      optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
         option value: 'AkeyMarkRead', 'Archive'
         option value: 'AkeyMarkReadForever', 'Mute'
         option value: 'AkeyMarkUnread', 'Mark Unread'
+    option value: 'E', 'Page Editor'
