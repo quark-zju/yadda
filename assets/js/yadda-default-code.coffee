@@ -281,7 +281,7 @@ cycleSortKeys = (state, sortKeys) ->
     state.activeSortDirection = 1
 
 # React elements
-{a, button, div, input, li, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
+{a, button, div, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
 renderQueryList = (state) ->
   ul className: 'phui-list-view',
@@ -433,13 +433,14 @@ stylesheet = """
 .yadda tr.read.muted { background: #f8e9e8; }
 .yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
 .yadda tr.selected { background-color: #FDF3DA; }
-.yadda .table-bottom-info { margin-top: 12px; display: block; color: #74777D; }
+.yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
 .yadda .phab-status.needs-revision { color: #c0392b }
-.yadda-content { margin-bottom: 16px }
+.yadda .action-selector { height: 1.6em; margin: 16px 8px 0; float: right; }
+.yadda .yadda-content { margin-bottom: 16px }
+.device-desktop .action-selector { display: none; }
 .device-desktop .yadda-content { margin: 16px; }
 .device-desktop th.actions { width: 30%; }
-.device-tablet .yadda table { border: none; }
 .device-tablet th.actions { width: 35%; }
 .device-tablet th.size, .device-tablet td.size { display: none; }
 .device-phone thead, .device-phone td.time, .device-phone td.size { display: none; }
@@ -449,7 +450,7 @@ stylesheet = """
 .device-phone td.phab-status { display: none; }
 .device-phone td.actions { float: right; }
 .device-phone td.checkbox { display: none; }
-.device-phone .yadda table { border: none; }
+.device-tablet .yadda table, .device-phone .yadda table { border-left: none; border-right: none; }
 """
 
 @render = (state) ->
@@ -481,8 +482,36 @@ stylesheet = """
           else
             div null,
               renderTable state, grevs
+              renderActionSelector state
               span className: 'table-bottom-info',
                 span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
                   "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
                 if state.updatedAt
                   "Last update: #{state.updatedAt.calendar()}."
+
+renderActionSelector = (state) ->
+  handleActionSelectorChange = (e) ->
+    v = e.target.value
+    if v[0] == 'Q'
+      state.activeQuery = v[1..]
+    else if v[0] == 'R'
+      state.activeRepo = v[1..]
+    else if v[0] == 'A'
+      state[v[1..]].getHandler()()
+  checked = _.keys(_.pickBy(state.checked))
+  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
+    option value: '+'
+    optgroup label: 'Queries',
+      queries.map (q, i) ->
+        name = q[0]
+        selected = name == state.activeQuery
+        option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
+    optgroup label: 'Repos',
+      getRepos(state).map (name) ->
+        selected = name == state.activeRepo
+        option key: name, disabled: selected, value: "R#{name}", "#{name}#{selected && ' (*)' || ''}"
+    if checked.length > 0
+      optgroup label: "Actions (#{checked.length} items)",
+        option value: 'AkeyMarkRead', 'Archive'
+        option value: 'AkeyMarkReadForever', 'Mute'
+        option value: 'AkeyMarkUnread', 'Mark Unread'
