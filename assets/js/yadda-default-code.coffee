@@ -353,7 +353,7 @@ renderTable = (state, grevs) ->
         th style: {width: 28, padding: '8px 0px'}, onClick: -> cycleSortKeys state, ['author'], title: 'Author'
         th onClick: (-> cycleSortKeys state, ['title', 'stack size']), 'Revision'
         if state.activeSortKey == 'phabricator status'
-          th style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
+          th className: 'phab-status', style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
         th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
         th className: 'size', style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
         if state.activeSortKey == 'created'
@@ -447,6 +447,7 @@ stylesheet = """
 .device-phone td.selector-indicator { display: none; }
 .device-phone td.author { display: none; }
 .device-phone td.title { float: left; font-size: 1.2em; max-width: 100%; }
+.device-phone td.phab-status { display: none; }
 .device-phone td.actions { float: right; }
 .device-phone td.checkbox { display: none; }
 .device-phone .yadda table { border: none; }
@@ -482,6 +483,7 @@ stylesheet = """
             div null,
               renderTable state, grevs
               span className: 'table-bottom-info',
-                "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
+                span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
+                  "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
                 if state.updatedAt
                   "Last update: #{state.updatedAt.calendar()}."
