@@ -18,9 +18,9 @@ queries = [
   ['Unread', (revs, state) ->
     readMap = state.readMap
     revs.filter (r) -> getDateModified(r) > getDateRead(state, readMap, r)]
-  ['Commented', (revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
-  ['Subscribed', (revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)]
-  ['Authored', (revs, state) -> revs.filter (r) -> r.author == state.user]
+  ['Commented', ((revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)), ((state) -> state.user)]
+  ['Subscribed', ((revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)), ((state) -> state.user)]
+  ['Authored', ((revs, state) -> revs.filter (r) -> r.author == state.user), ((state) -> state.user)]
   ['All', (revs) -> revs]
 ]
 
@@ -66,6 +66,10 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
   if state.activeSortDirection == -1
     gsorted = _.reverse(gsorted)
   gsorted.map (revs) -> _.sortBy(revs, singleSortKey)
+
+# Get queries list [[name, (revs, state) -> revs]]
+getQueries = (state) ->
+  queries.filter((q) -> !q[2] || q[2](state))
 
 # Get repo callsigns, plus "All", sort them reasonably (shortest first)
 getRepos = (state) ->
@@ -287,7 +291,7 @@ renderQueryList = (state) ->
   ul className: 'phui-list-view',
     li className: 'phui-list-item-view phui-list-item-type-label',
       span className: 'phui-list-item-name', 'Queries'
-    queries.map (q, i) ->
+    getQueries(state).map (q, i) ->
       name = q[0]
       selected = (state.activeQuery == name)
       li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
@@ -510,7 +514,7 @@ renderActionSelector = (state) ->
   select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
     option value: '+'
     optgroup className: 'filter', label: 'Queries',
-      queries.map (q, i) ->
+      getQueries(state).map (q, i) ->
         name = q[0]
         selected = name == state.activeQuery
         option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
