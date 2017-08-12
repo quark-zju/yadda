@@ -75,7 +75,8 @@ getRepos = (state) ->
   _.sortBy(repos, (r) -> [r == 'All', r.length, r])
 
 # Mark as read - record dateModified
-markAsRead = (state, revIds, markDate = null) ->
+markAsRead = (state, markDate = null) ->
+  revIds = _.keys(_.pickBy(state.checked))
   marked = state.readMap
   revMap = _.keyBy(state.revisions, (r) -> r.id)
   # remove closed revisions
@@ -90,6 +91,7 @@ markAsRead = (state, revIds, markDate = null) ->
       else
         marked[id] = markDate
   state.readMap = marked
+  state.checked = {}
 
 # Get timestamp of last "marked read" or commented
 getDateRead = (state, readMap, rev) ->
@@ -190,18 +192,15 @@ installKeyboardShortcuts = (state, grevs) ->
     (state.keyOpenAll = k).register()
   if not state.keyMarkRead?
     k = (new JX.KeyboardShortcut(['a'], 'Archive revisions with checkbox ticked (mark as read).')).setHandler ->
-      markAsRead state, _.keys(_.pickBy(state.checked))
-      state.checked = {}
+      markAsRead state
     (state.keyMarkRead = k).register()
   if not state.keyMarkReadForever?
     k = (new JX.KeyboardShortcut(['m'], 'Mute revisions with checkbox ticked (mark as read forever).')).setHandler ->
-      markAsRead state, _.keys(_.pickBy(state.checked)), _muteDate
-      state.checked = {}
+      markAsRead state, _muteDate
     (state.keyMarkReadForever = k).register()
   if not state.keyMarkUnread?
     k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with checkbox ticked as not read.')).setHandler ->
-      markAsRead state, _.keys(_.pickBy(state.checked)), 0
-      state.checked = {}
+      markAsRead state, 0
     (state.keyMarkUnread = k).register()
   if state.user and not state.keyReload?
     k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
