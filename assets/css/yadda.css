@@ -13,12 +13,12 @@
 
 .yadda-root .hint-code-different {
   cursor: default;
-  opacity: 0.3;
+  opacity: 0.1;
   user-select: none;
   z-index: 9;
-  position: absolute;
-  margin-top: -32px;
-  right: 24px;
+  position: fixed;
+  right: 0;
+  bottom: 0;
 }
 
 .yadda-root .hint-code-different:hover {
