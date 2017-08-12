@@ -337,6 +337,13 @@ renderTable = (state, grevs) ->
   currRevs = _.keyBy(state.currRevs)
   readMap = state.readMap # {id: dateModified}
   checked = state.checked
+
+  handleCheckedChange = (id, e) ->
+    checked = state.checked
+    checked[id] = !checked[id]
+    state.checked = checked
+    e.target.blur()
+
   table className: 'aphront-table-view',
     thead null,
       tr null,
@@ -373,7 +380,7 @@ renderTable = (state, grevs) ->
                 lastAuthor = r.author
                 renderProfile(state, r.author)
             td className: 'title', title: r.summary,
-              strong null, "D#{r.id} "
+              strong onClick: handleCheckedChange.bind(this, r.id), "D#{r.id} "
               a href: "/D#{r.id}",
                 strong null, r.title
             if state.activeSortKey == 'phabricator status'
@@ -393,11 +400,7 @@ renderTable = (state, grevs) ->
                 else
                   time.format('MMM D')
             td className: 'checkbox',
-              input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
-                checked = state.checked
-                checked[r.id] = !checked[r.id]
-                state.checked = checked
-                e.target.blur()
+              input type: 'checkbox', checked: (checked[r.id] || false), onChange: handleCheckedChange.bind(this, r.id)
 
 renderLoadingIndicator = (state) ->
   if state.error
