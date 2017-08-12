@@ -347,11 +347,11 @@ renderTable = (state, grevs) ->
         th onClick: (-> cycleSortKeys state, ['title', 'stack size']), 'Revision'
         if state.activeSortKey == 'phabricator status'
           th style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
-        th style: {width: 272}, onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
-        th style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
+        th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
+        th className: 'size', style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
         if state.activeSortKey == 'created'
-          th style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
-        th style: {width: 90}, onClick: (-> cycleSortKeys state, ['updated', 'created']), 'Updated'
+          th className: 'time created', style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
+        th className: 'time updated', style: {width: 90}, onClick: (-> cycleSortKeys state, ['updated', 'created']), 'Updated'
         # checkbox
         th style: {width: 28, padding: '8px 0px'}
     grevs.map (subgrevs, i) ->
@@ -367,8 +367,8 @@ renderTable = (state, grevs) ->
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
           tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
-            td className: "#{currRevs[r.id] && 'selected' || 'not-selected'}"
-            td null,
+            td className: "#{currRevs[r.id] && 'selected' || 'not-selected'} selector-indicator"
+            td className: 'author',
               if r.author != lastAuthor
                 lastAuthor = r.author
                 renderProfile(state, r.author)
@@ -392,7 +392,7 @@ renderTable = (state, grevs) ->
                   time.fromNow()
                 else
                   time.format('MMM D')
-            td null,
+            td className: 'checkbox',
               input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
                 checked = state.checked
                 checked[r.id] = !checked[r.id]
@@ -434,6 +434,19 @@ stylesheet = """
 .yadda .table-bottom-info { margin-top: 12px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
 .yadda .phab-status.needs-revision { color: #c0392b }
+.yadda-content { margin-bottom: 16px }
+.device-desktop .yadda-content { margin: 16px; }
+.device-desktop th.actions { width: 30%; }
+.device-tablet .yadda table { border: none; }
+.device-tablet th.actions { width: 35%; }
+.device-tablet th.size, .device-tablet td.size { display: none; }
+.device-phone thead, .device-phone td.time, .device-phone td.size { display: none; }
+.device-phone td.selector-indicator { display: none; }
+.device-phone td.author { display: none; }
+.device-phone td.title { float: left; font-size: 1.2em; max-width: 100%; }
+.device-phone td.actions { float: right; }
+.device-phone td.checkbox { display: none; }
+.device-phone .yadda table { border: none; }
 """
 
 @render = (state) ->
@@ -455,7 +468,7 @@ stylesheet = """
         div className: 'phabricator-nav-local phabricator-side-menu',
           renderQueryList state
           renderRepoList state
-        div className: 'phabricator-nav-content mlt mll mlr mlb',
+        div className: 'phabricator-nav-content yadda-content',
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
