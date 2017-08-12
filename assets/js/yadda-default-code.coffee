@@ -436,14 +436,18 @@ stylesheet = """
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
 .yadda .phab-status.needs-revision { color: #c0392b }
-.yadda .action-selector { border: 0; border-radius: 0; width: 100%; }
+.yadda .action-selector { border: 0; border-radius: 0; }
+.yadda .action-selector:focus { outline: none; }
 .yadda .yadda-content { margin-bottom: 16px }
-.device-desktop .action-selector, .device-tablet .action-selector { float: right; width: 20px; margin: 0 0 -34px; height: 34px; padding: 0 16px; background-color: transparent; }
+.device-desktop .action-selector, .device-tablet .action-selector { float: right; padding: 0 16px; background-color: transparent; }
+.device-desktop .action-selector { margin: 0 0 -34px; height: 34px; }
 .device-desktop .action-selector optgroup.filter { display: none; }
 .device-desktop .yadda-content { margin: 16px; }
 .device-desktop th.actions { width: 30%; }
+.device-tablet .action-selector { margin: 0 0 -30px; height: 30px; }
 .device-tablet th.actions { width: 35%; }
 .device-tablet th.size, .device-tablet td.size { display: none; }
+.device-tablet .yadda table, .device-phone .yadda table { border-left: none; border-right: none; }
 .device-phone thead, .device-phone td.time, .device-phone td.size { display: none; }
 .device-phone td.selector-indicator { display: none; }
 .device-phone td.author { display: none; }
@@ -451,7 +455,8 @@ stylesheet = """
 .device-phone td.phab-status { display: none; }
 .device-phone td.actions { float: right; }
 .device-phone td.checkbox { display: none; }
-.device-tablet .yadda table, .device-phone .yadda table { border-left: none; border-right: none; }
+.device-phone .action-selector { position: fixed; bottom: 0; width: 100%; border-top: 1px solid #C7CCD9; z-index: 10; }
+.device-phone .table-bottom-info { margin-bottom: 30px; }
 """
 
 @render = (state) ->
