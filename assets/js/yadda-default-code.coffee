@@ -168,8 +168,6 @@ copy = (text) ->
 _lastIndex = -1
 _muteDate = Number.MAX_SAFE_INTEGER
 installKeyboardShortcuts = (state, grevs) ->
-  if !JX? || !JX.KeyboardShortcut?
-    return
   if not state.keyNext?
     (state.keyNext = new JX.KeyboardShortcut(['j'], 'Select revisions in the next stack.')).register()
   if not state.keyPrev?
