@@ -417,6 +417,36 @@ renderLoadingIndicator = (state) ->
       React.DOM.p null, 'Fetching data...'
       React.DOM.progress style: {height: 10, width: 100}
 
+renderActionSelector = (state) ->
+  handleActionSelectorChange = (e) ->
+    v = e.target.value
+    if v[0] == 'Q'
+      state.activeQuery = v[1..]
+    else if v[0] == 'R'
+      state.activeRepo = v[1..]
+    else if v[0] == 'A'
+      state[v[1..]].getHandler()()
+    else if v[0] == 'E'
+      popupEditor()
+  checked = _.keys(_.pickBy(state.checked))
+  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
+    option value: '+'
+    optgroup className: 'filter', label: 'Queries',
+      getQueries(state).map (q, i) ->
+        name = q[0]
+        selected = name == state.activeQuery
+        option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
+    optgroup className: 'filter', label: 'Repos',
+      getRepos(state).map (name) ->
+        selected = name == state.activeRepo
+        option key: name, disabled: selected, value: "R#{name}", "#{name}#{selected && ' (*)' || ''}"
+    if checked.length > 0
+      optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
+        option value: 'AkeyMarkRead', 'Archive'
+        option value: 'AkeyMarkReadForever', 'Mute'
+        option value: 'AkeyMarkUnread', 'Mark Unread'
+    option value: 'E', 'Page Editor'
+
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
 .yadda table { table-layout: fixed; }
@@ -501,33 +531,3 @@ stylesheet = """
                   "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
                 if state.updatedAt
                   "Last update: #{state.updatedAt.calendar()}."
-
-renderActionSelector = (state) ->
-  handleActionSelectorChange = (e) ->
-    v = e.target.value
-    if v[0] == 'Q'
-      state.activeQuery = v[1..]
-    else if v[0] == 'R'
-      state.activeRepo = v[1..]
-    else if v[0] == 'A'
-      state[v[1..]].getHandler()()
-    else if v[0] == 'E'
-      popupEditor()
-  checked = _.keys(_.pickBy(state.checked))
-  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
-    option value: '+'
-    optgroup className: 'filter', label: 'Queries',
-      getQueries(state).map (q, i) ->
-        name = q[0]
-        selected = name == state.activeQuery
-        option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
-    optgroup className: 'filter', label: 'Repos',
-      getRepos(state).map (name) ->
-        selected = name == state.activeRepo
-        option key: name, disabled: selected, value: "R#{name}", "#{name}#{selected && ' (*)' || ''}"
-    if checked.length > 0
-      optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
-        option value: 'AkeyMarkRead', 'Archive'
-        option value: 'AkeyMarkReadForever', 'Mute'
-        option value: 'AkeyMarkUnread', 'Mark Unread'
-    option value: 'E', 'Page Editor'
