@@ -110,7 +110,7 @@ _init = ->
             e.toString(),
         content
         if code && code != yaddaDefaultCode
-          span className: 'hint-code-different phui-font-fa fa-paw', onDoubleClick: @handleCodeReset, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
+          span className: 'hint-code-different', onDoubleClick: @handleCodeReset, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
 
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
