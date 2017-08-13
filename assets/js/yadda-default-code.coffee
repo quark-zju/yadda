@@ -335,6 +335,7 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
       title += "#{desc}\n"
     if !actionId or parseInt(x.id) < actionId
       actionId = parseInt(x.id)
+  className += ' last'
   append()
   elements
 
@@ -400,9 +401,7 @@ renderTable = (state, grevs) ->
             if state.activeSortKey == 'phabricator status'
               td className: "phab-status #{r.status.toLowerCase().replace(/ /g, '-')}", r.status
             td className: 'actions',
-              renderActivities state, r, readActions, 'read'
-              if readActions.length > 0 and unreadActions.length > 0
-                span className: 'action-splitter'
+              renderActivities state, r, readActions, "read #{unreadActions.length > 0 && 'shrink' || ''}"
               renderActivities state, r, unreadActions, 'unread'
             td className: 'size',
               span className: 'size', "#{lines} line#{lines > 1 && 's' || ''}"
@@ -465,10 +464,11 @@ stylesheet = """
 .yadda td.size { text-align: right; }
 .yadda tbody { border-bottom: 1px solid #dde8ef }
 .yadda tbody:last-child { border-bottom: transparent; }
-.yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: left-top; background-repeat: no-repeat; background-clip: content-box; border-radius: 2px; }
-.yadda span.action-splitter { border-right: 1px solid #BFCFDA; margin: 3px 4px; height: 16px; display: inline-block; vertical-align: middle; float: left; }
+.yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: center top; background-repeat: no-repeat; background-clip: content-box; border-radius: 2px; }
 .yadda .profile.action { margin: 1px; float: left; }
-.yadda .profile.action.read { opacity: 0.3; }
+.yadda .profile.action.read { opacity: 0.4; }
+.yadda .profile.action.read.shrink { width: 7px; border-bottom-right-radius: 0; border-top-right-radius: 0; margin-left: 0; }
+.yadda .profile.action.read.shrink:nth-child(n+2) { border-bottom-left-radius: 0; border-top-left-radius: 0; }
 .yadda .profile.accept, .yadda .profile.reject, .yadda .profile.update { height: 15px; padding-bottom: 1px; border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
 .yadda .profile.accept { border-bottom: 4px solid #139543; }
 .yadda .profile.reject { border-bottom: 4px solid #C0392B; }
