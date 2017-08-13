@@ -477,7 +477,7 @@ stylesheet = """
 .yadda tr.read { background: #f0f6fa; }
 .yadda tr.read.muted { background: #f8e9e8; }
 .yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
-.yadda tr.selected { background-color: #FDF3DA; }
+.yadda tr.selected, .yadda tr.selected:hover { background-color: #FDF3DA; }
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
 .yadda .phab-status.needs-revision { color: #c0392b }
