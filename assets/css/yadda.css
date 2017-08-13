@@ -12,13 +12,21 @@
 }
 
 .yadda-root .hint-code-different {
-  cursor: default;
-  opacity: 0.1;
-  user-select: none;
-  z-index: 9;
-  position: fixed;
-  right: 0;
+  width: 0; 
+  height: 0; 
+  border-right: 5px solid transparent;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid #e67e22;
+  border-left: 5px solid #e67e22;
+
+  left: 0;
   bottom: 0;
+  position: fixed;
+  cursor: default;
+  opacity: 0.3;
+
+  user-select: none;
+  z-index: 11;
 }
 
 .yadda-root .hint-code-different:hover {
