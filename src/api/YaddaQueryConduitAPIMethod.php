@@ -106,7 +106,12 @@ EOT
     if ($revision_ids) {
       $query->withIDs($revision_ids);
     } else {
-      $query->withStatus(DifferentialRevisionQuery::STATUS_OPEN);
+      // See https://secure.phabricator.com/D18396
+      if (method_exists($query, 'withIsOpen')) {
+        $query->withIsOpen(true);
+      } else {
+        $query->withStatus(DifferentialRevisionQuery::STATUS_OPEN);
+      }
     }
     $revisions = $query->execute();
 
