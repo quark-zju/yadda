@@ -60,12 +60,15 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
   # for series, use selected sort function
   entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
   groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
-  # within a series, sort by id
-  singleSortKey = (r) -> -parseInt(r.id)
   gsorted = _.sortBy(_.values(gmap), (revs) -> groupSortKey(revs, state))
   if state.activeSortDirection == -1
     gsorted = _.reverse(gsorted)
-  gsorted.map (revs) -> _.sortBy(revs, singleSortKey)
+  # within a series, sort by dependency topology
+  getDepChain = _.memoize((revId) ->
+    depends = byId[revId].dependsOn
+    _.join(_.concat(depends.map(getDepChain), [_.padStart(revId, 8)])))
+  window.getDepChain = getDepChain
+  gsorted.map (revs) -> _.reverse(_.sortBy(revs, (r) -> getDepChain(r.id)))
 
 # Get queries list [[name, (revs, state) -> revs]]
 getQueries = (state) ->
