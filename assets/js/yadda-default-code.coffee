@@ -465,7 +465,7 @@ stylesheet = """
 .yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: center top; background-repeat: no-repeat; background-clip: content-box; border-radius: 2px; }
 .yadda .profile.action { margin: 1px; float: left; }
 .yadda .profile.action.read { opacity: 0.4; }
-.yadda .profile.action.read.shrink { width: 7px; border-bottom-right-radius: 0; border-top-right-radius: 0; margin-left: 0; }
+.yadda .profile.action.read.shrink { width: 11px; border-bottom-right-radius: 0; border-top-right-radius: 0; margin-left: 0; margin-right: 0; box-shadow: inset -1px 0px 0px 0px rgba(255,255,255,0.5); }
 .yadda .profile.action.read.shrink:nth-child(n+2) { border-bottom-left-radius: 0; border-top-left-radius: 0; }
 .yadda .profile.accept, .yadda .profile.reject, .yadda .profile.update { height: 15px; padding-bottom: 1px; border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
 .yadda .profile.accept { border-bottom: 4px solid #139543; }
