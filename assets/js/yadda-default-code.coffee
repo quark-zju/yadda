@@ -343,6 +343,7 @@ renderTable = (state, grevs) ->
   currRevs = _.keyBy(state.currRevs)
   readMap = state.readMap # {id: dateModified}
   checked = state.checked
+  columnCount = 7
 
   handleCheckedChange = (id, e) ->
     checked = state.checked
@@ -359,14 +360,21 @@ renderTable = (state, grevs) ->
         th style: {width: 28, padding: '8px 0px'}, onClick: -> cycleSortKeys state, ['author'], title: 'Author'
         th onClick: (-> cycleSortKeys state, ['title', 'stack size']), 'Revision'
         if state.activeSortKey == 'phabricator status'
+          columnCount += 1
           th className: 'phab-status', style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
         th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
         th className: 'size', style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
         if state.activeSortKey == 'created'
+          columnCount += 1
           th className: 'time created', style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
         th className: 'time updated', style: {width: 90}, onClick: (-> cycleSortKeys state, ['updated', 'created']), 'Updated'
         # checkbox
         th style: {width: 28, padding: '8px 0px'}
+    if grevs.length == 0
+      tbody null,
+        tr null,
+          td colSpan: columnCount, style: {textAlign: 'center', padding: 10, color: '#92969D'},
+            'No revision to show'
     grevs.map (subgrevs, i) ->
       lastAuthor = null # dedup same author
       tbody key: i,
@@ -520,14 +528,9 @@ stylesheet = """
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
-          if grevs.length == 0
-            div className: 'phui-info-view phui-info-severity-notice',
-              'No revision to show'
-          else
-            div null,
-              renderTable state, grevs
-              span className: 'table-bottom-info',
-                span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
-                  "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
-                if state.updatedAt
-                  "Last update: #{state.updatedAt.calendar()}."
+          renderTable state, grevs
+          span className: 'table-bottom-info',
+            span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
+              "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
+            if state.updatedAt
+              "Last update: #{state.updatedAt.calendar()}."
