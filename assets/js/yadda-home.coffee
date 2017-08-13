@@ -232,10 +232,9 @@ _init = ->
       useTextarea()
 
   # The only way to access the editor is the "~" key.
-  if JX && JX.KeyboardShortcut
-    k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
-    k.setHandler popupEditor
-    k.register()
+  k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
+  k.setHandler popupEditor
+  k.register()
 
   if __DEV__
     window.state = state
