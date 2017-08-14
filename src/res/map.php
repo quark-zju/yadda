@@ -7,8 +7,8 @@
  */
 return array(
   'names' => array(
-    'css/yadda.css' => '9c1b1266',
-    'js/yadda-app.min.js' => '140f4006',
+    'css/yadda.css' => 'e9d5d3ef',
+    'js/yadda-app.min.js' => '3fd84cf1',
     'vendor/coffeescript/coffeescript.js' => '8a9e999f',
     'vendor/lodash/lodash.js' => '216cb86c',
     'vendor/moment/moment.js' => '3ec21492',
@@ -21,8 +21,8 @@ return array(
     'moment' => '3ec21492',
     'react' => '58873982',
     'react-dom' => '499f306a',
-    'yadda-css' => '9c1b1266',
-    'yadda-home' => '140f4006',
+    'yadda-css' => 'e9d5d3ef',
+    'yadda-home' => '3fd84cf1',
   ),
   'requires' => array(),
   'packages' => array(),
