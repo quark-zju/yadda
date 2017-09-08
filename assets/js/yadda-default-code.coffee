@@ -12,17 +12,47 @@
 #
 # Javascript libraries LoDash, Moment.js, React.js and Javelin are available.
 
-# Pre-defined queries
+# Pre-defined filters
 # Change this to affect the navigation side bar
-queries = [
-  ['Unread', (revs, state) ->
-    readMap = state.readMap
-    revs.filter (r) -> getDateModified(r) > getDateRead(state, readMap, r)]
-  ['Commented', ((revs, state) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)), ((state) -> state.user)]
-  ['Subscribed', ((revs, state) -> revs.filter (r) -> r.ccs.includes(state.user)), ((state) -> state.user)]
-  ['Authored', ((revs, state) -> revs.filter (r) -> r.author == state.user), ((state) -> state.user)]
-  ['All', (revs) -> revs]
-]
+getFilterGroups = (state) ->
+  readMap = state.readMap
+
+  # Filter actions - return actions since last code update
+  afterUpdateActions = (r) ->
+    mtime = getDateCodeUpdated(r)
+    r.actions.filter((t) -> parseInt(t.dateModified) > mtime)
+
+  # [name, filterFunc]
+  reviewFilters = [
+    ['Needs 1st Pass', (revs) -> revs.filter (r) -> r.author != state.user && r.status == 'Needs Review' && not afterUpdateActions(r).some((t) -> t.type == 'accept')]
+    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> r.author != state.user && (r.status == 'Accepted' || (r.status == 'Needs Review' && afterUpdateActions(r).some((t) -> t.type == 'accept')))]
+    ['Needs Revision', (revs) -> revs.filter (r) -> r.author != state.user && r.status == 'Needs Revision']
+  ]
+
+  # logged-in user has more filters
+  if state.user
+    reviewFilters = reviewFilters.concat [
+      ['Authored', (revs) -> revs.filter (r) -> r.author == state.user]
+      ['Commented', (revs) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
+      ['Subscribed', (revs) -> revs.filter (r) -> r.ccs.includes(state.user)]
+    ]
+
+  updateFilters = [
+    ['Has Any Updates', (revs) -> revs.filter (r) -> getDateModified(r) > getDateRead(state, readMap, r)]
+    ['Has Code Updates', (revs) -> revs.filter (r) -> getDateCodeUpdated(r) > getDateRead(state, readMap, r)]
+    ['Archived', (revs) -> revs.filter (r) -> t = getDateRead(state, readMap, r); getDateModified(r) <= t && t != _muteDate]
+  ]
+
+  repos = _.uniq(state.revisions.map((r) -> r.callsign || _noFilter))
+  repos = _.sortBy(repos, (r) -> [r == _noFilter, r.length, r])
+  repoFilters = repos.map (repo) -> [repo, ((revs) -> revs.filter (r) -> r.callsign == repo || repo == _noFilter)]
+
+  # [(group title, [(name, filterFunc)])]
+  [
+    ['Reviews', reviewFilters]
+    ['Read States', updateFilters]
+    ['Repositories', repoFilters]
+  ]
 
 sortKeyFunctions = [
   ['updated', (revs, state) -> _.max(revs.map (r) -> getDateModified(r))]
@@ -35,19 +65,19 @@ sortKeyFunctions = [
   ['line count', (revs, state) -> _.sum(revs.map (r) -> parseInt(r.lineCount))]
 ]
 
+_noFilter = 'All'
+
 # Use selected query and repo to filter revisions
 filterRevs = (state) ->
   revs = state.revisions
-  # filter by repo
-  repo = state.activeRepo || 'All'
-  if repo != 'All'
-    revs = _.filter(revs, (r) -> r.callsign == repo)
-  # filter by query
-  entry = _.find(queries, (q) -> q[0] == state.activeQuery)
-  if entry?
-    func = entry[1]
-    if func?
-      revs = func(revs, state)
+  active = state.activeFilter
+  getFilterGroups(state).map ([title, filters]) ->
+    selectedName = active[title] || filters[0][0]
+    entry = _.find(filters, (f) -> f[0]  == selectedName)
+    if entry
+      func = entry[1]
+      if func
+        revs = func(revs, state)
   revs
 
 # Group by stack and sort them
@@ -69,17 +99,6 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
     _.join(_.concat(depends.map(getDepChain), [_.padStart(revId, 8)])))
   window.getDepChain = getDepChain
   gsorted.map (revs) -> _.reverse(_.sortBy(revs, (r) -> getDepChain(r.id)))
-
-# Get queries list [[name, (revs, state) -> revs]]
-getQueries = (state) ->
-  queries.filter((q) -> !q[2] || q[2](state))
-
-# Get repo callsigns, plus "All", sort them reasonably (shortest first)
-getRepos = (state) ->
-  repos = _.uniq(state.revisions.map((r) -> r.callsign || 'All'))
-  if repos.length > 1 && _.indexOf(repos, 'All') == -1
-    repos.push 'All'
-  _.sortBy(repos, (r) -> [r == 'All', r.length, r])
 
 # Mark as read - record dateModified
 markAsRead = (state, markDate = null) ->
@@ -108,17 +127,19 @@ getDateRead = (state, readMap, rev) ->
 
 # Get timestamp of the last action of given revision
 getDateModified = (rev) ->
-  # cannot use rev.dateModified since diff property update will bump that without generation a transaction/action 
+  # cannot use rev.dateModified since diff property update will bump that without generation a transaction/action
   _.max(rev.actions.map((x) -> parseInt(x.dateModified))) || -1
+
+# Get timestamp of the last code update action
+getDateCodeUpdated = (rev) ->
+  _.max(rev.actions.map((t) -> t.type == 'update' && parseInt(t.dateModified) || -1)) || -1
 
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
   syncProperty = state.defineSyncedProperty
   syncRemotely = state.sync # if set, sync some state remotely
-  if not state.activeQuery
-    syncProperty 'activeQuery', queries[0][0], syncRemotely
-  if not state.activeRepo
-    syncProperty 'activeRepo', getRepos(state)[0], syncRemotely
+  if not state.activeFilter
+    syncProperty 'activeFilter', {}, syncRemotely
   if not state.activeSortKey
     syncProperty 'activeSortKey', sortKeyFunctions[0][0], syncRemotely
   if not state.activeSortDirection
@@ -288,27 +309,50 @@ cycleSortKeys = (state, sortKeys) ->
 # React elements
 {a, button, div, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
-renderQueryList = (state) ->
-  ul className: 'phui-list-view',
-    li className: 'phui-list-item-view phui-list-item-type-label',
-      span className: 'phui-list-item-name', 'Queries'
-    getQueries(state).map (q, i) ->
-      name = q[0]
-      selected = (state.activeQuery == name)
-      li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
-        a className: 'phui-list-item-href', href: '#', onClick: (-> state.activeQuery = name),
-          span className: 'phui-list-item-name', name
+renderFilterList = (state) ->
+  active = state.activeFilter
+  getFilterGroups(state).map ([title, filters]) ->
+    if not _.some(filters, (f) -> f[0] == _noFilter)
+      filters.push([_noFilter, (revs) -> revs])
+    selectedName = active[title] || filters[0][0]
 
-renderRepoList = (state) ->
-  repos = getRepos(state)
-  ul className: 'phui-list-view',
-    li className: 'phui-list-item-view phui-list-item-type-label',
-      span className: 'phui-list-item-name', 'Repos'
-    repos.map (name, i) ->
-      selected = (state.activeRepo == name)
-      li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
-        a className: 'phui-list-item-href', href: '#', onClick: (-> state.activeRepo = name),
-          span className: 'phui-list-item-name', name
+    ul className: 'phui-list-view', key: title,
+      li className: 'phui-list-item-view phui-list-item-type-label',
+        span className: 'phui-list-item-name', title
+      filters.map ([name, func], i) ->
+        selected = (selectedName == name)
+        li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
+          a className: 'phui-list-item-href', href: '#', onClick: (-> t = state.activeFilter; t[title] = name; state.activeFilter = t),
+            span className: 'phui-list-item-name', name
+
+renderActionSelector = (state) ->
+  active = state.activeFilter
+  handleActionSelectorChange = (e) ->
+    v = e.target.value
+    if v[0] == 'F'
+      [title, name] = JSON.parse(v[1..])
+      t = state.activeFilter
+      t[title] = name
+      state.activeFilter = t
+    else if v[0] == 'A'
+      state[v[1..]].getHandler()()
+    else if v[0] == 'E'
+      popupEditor()
+  checked = _.keys(_.pickBy(state.checked))
+  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
+    option value: '+'
+    if checked.length > 0
+      optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
+        option value: 'AkeyMarkRead', 'Archive'
+        option value: 'AkeyMarkReadForever', 'Mute'
+        option value: 'AkeyMarkUnread', 'Mark Unread'
+    getFilterGroups(state).map ([title, filters], j) ->
+      selectedName = active[title] || filters[0][0]
+      optgroup className: 'filter', label: title, key: j,
+        filters.map ([name, func], i) ->
+          selected = name == selectedName
+          option key: i, disabled: selected, value: "F#{JSON.stringify([title, name])}", "#{name}#{selected && ' (*)' || ''}"
+    option value: 'E', 'Page Editor'
 
 renderProfile = (state, username, opts = {}) ->
   profile = state.profileMap[username]
@@ -422,36 +466,6 @@ renderLoadingIndicator = (state) ->
       React.DOM.p null, 'Fetching data...'
       React.DOM.progress style: {height: 10, width: 100}
 
-renderActionSelector = (state) ->
-  handleActionSelectorChange = (e) ->
-    v = e.target.value
-    if v[0] == 'Q'
-      state.activeQuery = v[1..]
-    else if v[0] == 'R'
-      state.activeRepo = v[1..]
-    else if v[0] == 'A'
-      state[v[1..]].getHandler()()
-    else if v[0] == 'E'
-      popupEditor()
-  checked = _.keys(_.pickBy(state.checked))
-  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
-    option value: '+'
-    optgroup className: 'filter', label: 'Queries',
-      getQueries(state).map (q, i) ->
-        name = q[0]
-        selected = name == state.activeQuery
-        option key: i, disabled: selected, value: "Q#{name}", "#{name}#{selected && ' (*)' || ''}"
-    optgroup className: 'filter', label: 'Repos',
-      getRepos(state).map (name) ->
-        selected = name == state.activeRepo
-        option key: name, disabled: selected, value: "R#{name}", "#{name}#{selected && ' (*)' || ''}"
-    if checked.length > 0
-      optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
-        option value: 'AkeyMarkRead', 'Archive'
-        option value: 'AkeyMarkReadForever', 'Mute'
-        option value: 'AkeyMarkUnread', 'Mark Unread'
-    option value: 'E', 'Page Editor'
-
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
 .yadda table { table-layout: fixed; }
@@ -519,8 +533,7 @@ stylesheet = """
     div className: 'phui-navigation-shell phui-basic-nav',
       div className: 'phabricator-nav',
         div className: 'phabricator-nav-local phabricator-side-menu',
-          renderQueryList state
-          renderRepoList state
+          renderFilterList state
         div className: 'phabricator-nav-content yadda-content',
           renderActionSelector state
           if state.error
