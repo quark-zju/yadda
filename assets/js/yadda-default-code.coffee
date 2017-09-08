@@ -449,6 +449,36 @@ renderLoadingIndicator = (state) ->
       React.DOM.p null, 'Fetching data...'
       React.DOM.progress style: {height: 10, width: 100}
 
+@render = (state) ->
+  # Make it easier for debugging using F12 developer tools
+  window.state = state
+
+  if not state.revisions
+    return renderLoadingIndicator(state)
+
+  normalizeState state
+  revs = filterRevs(state, state.revisions)
+  grevs = groupRevs(state, revs)
+  installKeyboardShortcuts state, grevs
+
+  div className: 'yadda',
+    style null, stylesheet
+    div className: 'phui-navigation-shell phui-basic-nav',
+      div className: 'phabricator-nav',
+        div className: 'phabricator-nav-local phabricator-side-menu',
+          renderFilterList state
+        div className: 'phabricator-nav-content yadda-content',
+          renderActionSelector state
+          if state.error
+            div className: 'phui-info-view phui-info-severity-error',
+              state.error
+          renderTable state, grevs
+          span className: 'table-bottom-info',
+            span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
+              "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
+            if state.updatedAt
+              "Last update: #{state.updatedAt.calendar()}."
+
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
 .yadda table { table-layout: fixed; }
@@ -499,32 +529,3 @@ stylesheet = """
 .device-phone .table-bottom-info { margin-bottom: 30px; }
 """
 
-@render = (state) ->
-  # Make it easier for debugging using F12 developer tools
-  window.state = state
-
-  if not state.revisions
-    return renderLoadingIndicator(state)
-
-  normalizeState state
-  revs = filterRevs(state, state.revisions)
-  grevs = groupRevs(state, revs)
-  installKeyboardShortcuts state, grevs
-
-  div className: 'yadda',
-    style null, stylesheet
-    div className: 'phui-navigation-shell phui-basic-nav',
-      div className: 'phabricator-nav',
-        div className: 'phabricator-nav-local phabricator-side-menu',
-          renderFilterList state
-        div className: 'phabricator-nav-content yadda-content',
-          renderActionSelector state
-          if state.error
-            div className: 'phui-info-view phui-info-severity-error',
-              state.error
-          renderTable state, grevs
-          span className: 'table-bottom-info',
-            span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
-              "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
-            if state.updatedAt
-              "Last update: #{state.updatedAt.calendar()}."
