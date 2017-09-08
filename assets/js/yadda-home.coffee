@@ -49,6 +49,29 @@ state =
 
         redraw()
 
+# utility: copy
+copy = (text) ->
+  if not text
+    return
+  t = document.createElement('textarea')
+  t.style.position = 'fixed'
+  t.style.bottom = 0
+  t.style.right = 0
+  t.style.width = '50px'
+  t.style.height = '20px'
+  t.style.border = 'none'
+  t.style.outline = 'none'
+  t.style.boxShadow = 'none'
+  t.style.background = 'transparent'
+  t.style.opacity = '0.1'
+  t.value = text
+  document.body.appendChild t
+  t.select()
+  try
+    document.execCommand('copy')
+  finally
+    document.body.removeChild t
+
 _init = ->
   # whether to sync remotely, default true. The option itself won't be synced.
   state.defineSyncedProperty 'sync', true, false

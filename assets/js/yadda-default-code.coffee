@@ -162,28 +162,11 @@ scrollIntoView = ->
       e.scrollIntoView()
 
 # Copy to clipboard
-copy = (text) ->
+copyWithNotif = (text) ->
   if not text
     return
-  t = document.createElement('textarea')
-  t.style.position = 'fixed'
-  t.style.bottom = 0
-  t.style.right = 0
-  t.style.width = '50px'
-  t.style.height = '20px'
-  t.style.border = 'none'
-  t.style.outline = 'none'
-  t.style.boxShadow = 'none'
-  t.style.background = 'transparent'
-  t.style.opacity = '0.1'
-  t.value = text
-  document.body.appendChild t
-  t.select()
-  try
-    document.execCommand('copy')
-    new JX.Notification().setContent("Copied: #{text}").setDuration(3000).show()
-  finally
-    document.body.removeChild t
+  copy(text)
+  new JX.Notification().setContent("Copied: #{text}").setDuration(3000).show()
 
 # Keyboard shortcuts
 _lastIndex = -1
@@ -236,13 +219,13 @@ installKeyboardShortcuts = (state, grevs) ->
       k = (new JX.KeyboardShortcut(['c'], 'Copy selected revision numbers to clipboard.')).setHandler ->
         ids = state.currRevs || []
         ids = _.sortBy(ids, parseInt)
-        copy _.join(ids.map((id) -> "D#{id}"), '+')
+        copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
       (state.keyCopy = k).register()
     if not state.keyCopyChecked?
       k = (new JX.KeyboardShortcut(['C'], 'Copy revision numbers with checkbox ticked to clipboard.')).setHandler ->
         ids = _.keys(_.pickBy(state.checked))
         ids = _.sortBy(ids, parseInt)
-        copy _.join(ids.map((id) -> "D#{id}"), '+')
+        copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
       (state.keyCopyChecked = k).register()
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
