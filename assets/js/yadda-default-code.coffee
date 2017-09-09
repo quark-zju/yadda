@@ -98,6 +98,25 @@ getTopoSorter = (allRevs) ->
       _.sortBy(revsOrIds, (r) -> getSeriesIdChain(r.id))
   [getSeriesId, topoSort]
 
+
+# Given a list of actions, return a function:
+# - isSeriesAction: (action) -> true | false
+_seriesRe = /\bth(e|is) series\b/i
+getIsSeriesAction = (actions) ->
+  seriesDates = {} # {dateCreated: true}
+  actions.forEach (x) ->
+    if x.comment && _seriesRe.exec(x.comment)
+      seriesDates[x.dateCreated] = true
+  (action) -> seriesDates[action.dateCreated] || false
+
+# Normalize action type (ex. 'plan-changes' -> 'reject') and only return those
+# we care about: accept, update, request-review, reject.
+sensibleActionType = (action) ->
+  if action.type == 'plan-changes'
+    'reject'
+  else if _.includes(['accept', 'update', 'request-review', 'reject'], action.type)
+    action.type
+
 # Return a function:
 # - getStatus: (revId) -> {accepts: [user], rejects: [user]}
 # Update state.readMap according to series commented status
@@ -111,7 +130,6 @@ getTopoSorter = (allRevs) ->
 #     series
 # - Do not take Phabricator review status into consideration. This bypasses
 #   blocking reviewers, non-sticky setting and unknown statuses.
-_seriesRe = /\bth(e|is) series\b/i
 getStatusCalculator = (state, getSeriesId) ->
   revs = state.revisions
   readMap = state.readMap
@@ -124,19 +142,12 @@ getStatusCalculator = (state, getSeriesId) ->
   # populate above internal states
   revs.forEach (r) ->
     seriesId = getSeriesId(r.id)
-    _.values(_.groupBy(r.actions, (t) -> "#{t.dateCreated}.#{t.author}")).forEach (actions) ->
-      ctime = parseInt(actions[0].dateCreated)
-      author = actions[0].author
-      verb = isSeries = null
-      actions.forEach (action) ->
-        if _.includes(['plan-changes', 'reject'], action.type)
-          verb = 'reject'
-        else if action.type == 'accept'
-          verb = 'accept'
-        else if action.type == 'update' || action.type == 'request-review'
-          verb = action.type
-        else if action.type == 'comment'
-          isSeries ||= _seriesRe.exec(action.comment)
+    isSeriesAction = getIsSeriesAction(r.actions)
+    r.actions.forEach (x) ->
+      ctime = parseInt(x.dateCreated)
+      author = x.author
+      verb = sensibleActionType(x)
+      isSeries = isSeriesAction(x)
       if isSeries && author == state.user
         seriesDateRead[seriesId] ||= 0
         seriesDateRead[seriesId] = _.max([seriesDateRead[seriesId], ctime])
@@ -461,19 +472,19 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
   author = className = title = actionId = ''
   elements = []
   append = ->
-    # [author, className, title, actionId] = buf
     if author
       elements.push renderProfile state, author, href: "/D#{rev.id}##{actionId}", title: title, className: "#{extraClassName} #{className} profile action", key: actionId
     author = className = title = actionId = ''
+  isSeriesAction = getIsSeriesAction(actions)
   _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach (x) ->
     if x.author != author
       append()
     author = x.author
-    type = x.type
-    if type == 'plan-changes'
-      type = 'reject'
-    if ['accept', 'reject', 'update'].includes(type)
-      className = type # the latest action wins
+    verb = sensibleActionType(x)
+    if verb
+      className = "#{verb} sensible-action" # the latest action wins
+      if isSeriesAction(x)
+        className += ' series'
     desc = describeAction(x)
     if desc
       title += "#{desc}\n"
@@ -627,10 +638,12 @@ stylesheet = """
 .yadda .profile.action.read { opacity: 0.4; }
 .yadda .profile.action.read.shrink { width: 11px; border-bottom-right-radius: 0; border-top-right-radius: 0; margin-left: 0; margin-right: 0; box-shadow: inset -1px 0px 0px 0px rgba(255,255,255,0.5); }
 .yadda .profile.action.read.shrink:nth-child(n+2) { border-bottom-left-radius: 0; border-top-left-radius: 0; }
-.yadda .profile.accept, .yadda .profile.reject, .yadda .profile.update { height: 15px; padding-bottom: 1px; border-bottom-right-radius: 0; border-bottom-left-radius: 0; }
-.yadda .profile.accept { border-bottom: 4px solid #139543; }
-.yadda .profile.reject { border-bottom: 4px solid #C0392B; }
-.yadda .profile.update { border-bottom: 4px solid #3498DB; }
+.yadda .profile.sensible-action { height: 15px; padding-bottom: 1px; border-bottom-right-radius: 0; border-bottom-left-radius: 0; border-bottom-width: 4px; border-bottom-style: solid; }
+.yadda .profile.sensible-action.series { height: 13px; border-bottom-width: 6px; }
+.yadda .profile.accept { border-bottom-color: #139543; }
+.yadda .profile.reject { border-bottom-color: #C0392B; }
+.yadda .profile.update { border-bottom-color: #3498DB; }
+.yadda .profile.request-review { border-bottom: 4px solid #6e5cb6; }
 .yadda td.title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yadda tr.read { background: #f0f6fa; }
 .yadda tr.read.muted { background: #f8e9e8; }
