@@ -80,19 +80,32 @@ filterRevs = (state) ->
         revs = func(revs, state)
   revs
 
-# Group by series for selected revs and sort them
-groupRevs = (state, revs) -> # [rev] -> [[rev]]
+# Generate utilities for topology sorting
+getTopoSorter = (state) -> # seriesId: id -> rootId, topoSort: revs -> sortedRevs
   allRevs = state.revisions
   byId = _.keyBy(allRevs, (r) -> r.id)
-  getDep = _.memoize((revId) ->
-    _.min(byId[revId].dependsOn.map((i) -> getDep(i))) || revId)
+  seriesId = _.memoize((revId) ->
+    _.min(byId[revId].dependsOn.map((i) -> seriesId(i))) || revId)
+  seriesIdChain = _.memoize((revId) ->
+    depends = byId[revId].dependsOn
+    _.join(_.concat(depends.map(seriesIdChain), [_.padStart(revId, 8)])))
+  topoSort = (revsOrIds) ->
+    if revsOrIds.some((x) -> !x.id)
+      _.sortBy(revsOrIds, (id) -> seriesIdChain(id))
+    else
+      _.sortBy(revsOrIds, (r) -> seriesIdChain(r.id))
+  [seriesId, topoSort]
+
+# Group by series for selected revs and sort them
+groupRevs = (state, revs, seriesId, topoSort) -> # [rev] -> [[rev]]
+  allRevs = state.revisions
   # seriesId: [rev]
-  sortRevsByDep = _.groupBy(revs, (r) -> getDep(r.id))
+  sortRevsByDep = _.groupBy(revs, (r) -> seriesId(r.id))
   # config: do we always include entire series even if only few revs are picked
   if state.config.noFullSeries # do not include full series
     showRevsByDep = sortRevsByDep
   else # include full series
-    showRevsByDep =_.groupBy(allRevs, (r) -> getDep(r.id))
+    showRevsByDep = _.groupBy(allRevs, (r) -> seriesId(r.id))
   # for series, use selected sort function
   entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
   groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
@@ -100,10 +113,7 @@ groupRevs = (state, revs) -> # [rev] -> [[rev]]
   if state.activeSortDirection == -1
     gsorted = _.reverse(gsorted)
   # within a series, sort by dependency topology
-  getDepChain = _.memoize((revId) ->
-    depends = byId[revId].dependsOn
-    _.join(_.concat(depends.map(getDepChain), [_.padStart(revId, 8)])))
-  gsorted.map (d) -> _.reverse(_.sortBy(showRevsByDep[d], (r) -> getDepChain(r.id)))
+  gsorted.map (d) -> _.reverse(topoSort(showRevsByDep[d]))
 
 # Mark as read - record dateModified
 markAsRead = (state, markDate = null) ->
@@ -178,7 +188,7 @@ copyWithNotif = (text) ->
 # Keyboard shortcuts
 _lastIndex = -1
 _muteDate = Number.MAX_SAFE_INTEGER
-installKeyboardShortcuts = (state, grevs) ->
+installKeyboardShortcuts = (state, grevs, topoSort) ->
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
     if singleSelection
@@ -225,7 +235,8 @@ installKeyboardShortcuts = (state, grevs) ->
 
   shortcutKey ['s'], 'Toggle always show full series.', -> c = state.config; c.noFullSeries = not c.noFullSeries; state.config = c
 
-  copyIds = (ids) -> copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
+  copyIds = (ids) ->
+    copyWithNotif _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
 
   shortcutKey ['c'], 'Copy focused revision numbers to clipboard.', -> copyIds(state.currRevs || [])
   shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
@@ -440,8 +451,9 @@ renderLoadingIndicator = (state) ->
 
   normalizeState state
   revs = filterRevs(state, state.revisions)
-  grevs = groupRevs(state, revs)
-  installKeyboardShortcuts state, grevs
+  [seriesId, topoSort] = getTopoSorter(state)
+  grevs = groupRevs(state, revs, seriesId, topoSort)
+  installKeyboardShortcuts state, grevs, topoSort
 
   div className: 'yadda',
     style null, stylesheet
