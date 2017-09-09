@@ -24,22 +24,24 @@ getFilterGroups = (state, getStatus) ->
 
   # [name, filterFunc]
   reviewFilters = [
-    ['Needs 1st Pass', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).accepts.length == 0 && getStatus(r.id).rejects.length == 0]
-    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).accepts.length > 0 && getStatus(r.id).rejects.length == 0]
-    ['Needs Revision', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).rejects.length > 0]
+    ['Needs 1st Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length == 0 && getStatus(r.id).rejects.length == 0]
+    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length > 0 && getStatus(r.id).rejects.length == 0]
+    ['Needs Revision', (revs) -> revs.filter (r) -> getStatus(r.id).rejects.length > 0]
   ]
 
   # logged-in user has more filters
+  peopleFilters = []
   if state.user
-    reviewFilters = reviewFilters.concat [
-      ['Authored', (revs) -> revs.filter (r) -> r.author == state.user]
-      ['Subscribed', (revs) -> revs.filter (r) -> r.ccs.includes(state.user)]
+    peopleFilters = [
+      ['Authored By Others', (revs) -> revs.filter (r) -> r.author != state.user]
+      ['Authored By Me', (revs) -> revs.filter (r) -> r.author == state.user]
+      ['Subscribed By Me', (revs) -> revs.filter (r) -> r.ccs.includes(state.user)]
     ]
 
   updateFilters = [
     ['Has Any Updates', (revs) -> revs.filter (r) -> getDateModified(r) > getDateRead(state, readMap, r)]
     ['Has Code Updates', (revs) -> revs.filter (r) -> getDateCodeUpdated(r) > getDateRead(state, readMap, r)]
-    ['Archived', (revs) -> revs.filter (r) -> t = getDateRead(state, readMap, r); getDateModified(r) <= t && t != _muteDate]
+    ['Already Read', (revs) -> revs.filter (r) -> t = getDateRead(state, readMap, r); getDateModified(r) <= t && t != _muteDate]
   ]
 
   repos = _.uniq(state.revisions.map((r) -> r.callsign || 'Unnamed'))
@@ -48,7 +50,8 @@ getFilterGroups = (state, getStatus) ->
 
   # [(group title, [(name, filterFunc)])]
   [
-    ['Reviews', reviewFilters]
+    ['Review Stages', reviewFilters]
+    ['People', peopleFilters]
     ['Read States', updateFilters]
     ['Repositories', repoFilters]
   ]
@@ -431,7 +434,8 @@ renderFilterList = (state) ->
 
   getFilterGroups(state).map ([title, filters]) ->
     selected = getSelectedFilters(active, title, filters)
-
+    if not filters
+      return
     ul className: 'phui-list-view', key: title,
       li className: 'phui-list-item-view phui-list-item-type-label',
         span className: 'phui-list-item-name', title
@@ -459,6 +463,8 @@ renderActionSelector = (state) ->
         option value: 'Km', 'Mute'
         option value: 'KU', 'Mark Unread'
     getFilterGroups(state).map ([title, filters], j) ->
+      if not filters
+        return
       selected = getSelectedFilters(active, title, filters)
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
