@@ -72,6 +72,19 @@ copy = (text) ->
   finally
     document.body.removeChild t
 
+# utility: key for easy keyboard shortcut registering
+_registeredKeys = {}
+shortcutKey = (keys, desc, handler) ->
+  name = JSON.stringify(keys)
+  if _registeredKeys[name]
+    k = _registeredKeys[name]
+  else
+    k = (new JX.KeyboardShortcut(keys, desc)).setHandler(handler)
+    _registeredKeys[name] = k
+    k.register()
+  k.setDescription(desc)
+  k.setHandler(handler)
+
 _init = ->
   # whether to sync remotely, default true. The option itself won't be synced.
   state.defineSyncedProperty 'sync', true, false
@@ -255,9 +268,7 @@ _init = ->
       useTextarea()
 
   # The only way to access the editor is the "~" key.
-  k = new JX.KeyboardShortcut(['~'], 'Pop-up live code editor.')
-  k.setHandler popupEditor
-  k.register()
+  shortcutKey ['~'], 'Pop-up live interface editor.', popupEditor
 
   if __DEV__
     window.state = state
