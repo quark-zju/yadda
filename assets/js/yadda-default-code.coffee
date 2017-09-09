@@ -469,8 +469,11 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
     if x.author != author
       append()
     author = x.author
-    if ['accept', 'reject', 'update'].includes(x.type)
-      className = x.type # the latest action wins
+    type = x.type
+    if type == 'plan-changes'
+      type = 'reject'
+    if ['accept', 'reject', 'update'].includes(type)
+      className = type # the latest action wins
     desc = describeAction(x)
     if desc
       title += "#{desc}\n"
