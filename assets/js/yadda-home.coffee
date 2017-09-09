@@ -91,6 +91,14 @@ triggerShortcutKey = (key) ->
     if _.includes(JSON.parse(name), key)
       entry.getHandler()()
 
+# utility: JX.Notification
+notify = (content, duration = 3000) ->
+  notif = new JX.Notification().setContent(content).setDuration(duration)
+  if notif.setWebReady
+    # new API added by https://secure.phabricator.com/D18457
+    notif.setWebReady true
+  notif.show()
+
 _init = ->
   # whether to sync remotely, default true. The option itself won't be synced.
   state.defineSyncedProperty 'sync', true, false
