@@ -1,4 +1,20 @@
-Provides a "Yadda" application for Phabricator.
+Yadda
+
+Yet Another Dashboard designed for certain development setup. Originally
+designed for the Mercurial community. It may be interesting if your setup has
+some of the following properties:
+
+  - Community review - no specific reviewer
+  - Reviewer push - author cannot push
+  - 2-Pass review - use blocking reviewers and non-blocking
+  - Dependent patches - dependent patch series is common
+  - Bounded "open" revisions - it's sane to enumerate all open revisions
+
+Tested Phabricator versions:
+
+  libphutil: ceeaf5ebea1c57c554eff0a2f131a21072f2948d
+  phabricator: c662dda0f17d886fb864ecfde0e8b37b4fe090f8
+  arcanist: cbc785ddce71be073f536c1faea8c231e495d5df
 
 INSTALL
 phabricator/bin/config set load-libraries '["/this/repo/src"]'
