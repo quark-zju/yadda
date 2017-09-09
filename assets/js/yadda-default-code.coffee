@@ -14,7 +14,7 @@
 
 # Pre-defined filters
 # Change this to affect the navigation side bar
-getFilterGroups = (state) ->
+getFilterGroups = (state, getStatus) ->
   readMap = state.readMap
 
   # Filter actions - return actions since last code update
@@ -24,16 +24,15 @@ getFilterGroups = (state) ->
 
   # [name, filterFunc]
   reviewFilters = [
-    ['Needs 1st Pass', (revs) -> revs.filter (r) -> r.author != state.user && r.status == 'Needs Review' && not afterUpdateActions(r).some((t) -> t.type == 'accept')]
-    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> r.author != state.user && (r.status == 'Accepted' || (r.status == 'Needs Review' && afterUpdateActions(r).some((t) -> t.type == 'accept')))]
-    ['Needs Revision', (revs) -> revs.filter (r) -> r.author != state.user && r.status == 'Needs Revision']
+    ['Needs 1st Pass', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).accepts.length == 0 && getStatus(r.id).rejects.length == 0]
+    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).accepts.length > 0 && getStatus(r.id).rejects.length == 0]
+    ['Needs Revision', (revs) -> revs.filter (r) -> r.author != state.user && getStatus(r.id).rejects.length > 0]
   ]
 
   # logged-in user has more filters
   if state.user
     reviewFilters = reviewFilters.concat [
       ['Authored', (revs) -> revs.filter (r) -> r.author == state.user]
-      ['Commented', (revs) -> revs.filter (r) -> r.actions.some((x) -> x.comment? && x.author == state.user)]
       ['Subscribed', (revs) -> revs.filter (r) -> r.ccs.includes(state.user)]
     ]
 
@@ -66,10 +65,10 @@ sortKeyFunctions = [
 ]
 
 # Use selected query and repo to filter revisions
-filterRevs = (state) ->
+filterRevs = (state, getStatus) ->
   revs = state.revisions
   active = state.activeFilter
-  getFilterGroups(state).map ([title, filters]) ->
+  getFilterGroups(state, getStatus).map ([title, filters]) ->
     selected = getSelectedFilters(active, title, filters)
     subrevs = null
     filters.forEach ([name, func]) ->
@@ -82,32 +81,93 @@ filterRevs = (state) ->
       revs = subrevs
   revs
 
-# Generate utilities for topology sorting
-getTopoSorter = (state) -> # seriesId: id -> rootId, topoSort: revs -> sortedRevs
-  allRevs = state.revisions
+# Generate utilities for topology sorting. Return 2 functions:
+# - getSeriesId: revId -> seriesId
+# - topoSort: revs -> sortedRevs
+getTopoSorter = (allRevs) ->
   byId = _.keyBy(allRevs, (r) -> r.id)
-  seriesId = _.memoize((revId) ->
-    _.min(byId[revId].dependsOn.map((i) -> seriesId(i))) || revId)
-  seriesIdChain = _.memoize((revId) ->
+  getSeriesId = _.memoize((revId) ->
+    _.min(byId[revId].dependsOn.map((i) -> getSeriesId(i))) || revId)
+  getSeriesIdChain = _.memoize((revId) ->
     depends = byId[revId].dependsOn
-    _.join(_.concat(depends.map(seriesIdChain), [_.padStart(revId, 8)])))
+    _.join(_.concat(depends.map(getSeriesIdChain), [_.padStart(revId, 8)])))
   topoSort = (revsOrIds) ->
     if revsOrIds.some((x) -> !x.id)
-      _.sortBy(revsOrIds, (id) -> seriesIdChain(id))
+      _.sortBy(revsOrIds, (id) -> getSeriesIdChain(id))
     else
-      _.sortBy(revsOrIds, (r) -> seriesIdChain(r.id))
-  [seriesId, topoSort]
+      _.sortBy(revsOrIds, (r) -> getSeriesIdChain(r.id))
+  [getSeriesId, topoSort]
+
+# Return a function getStatus: (revId) -> {accepts: [user], rejects: [user]}
+# Re-calculate revision statuses using 'actions' data.
+# - Set '_status: {accept: [username], reject: [username]}'
+#   - accept is sticky
+#   - reject is not sticky
+#   - 'request-review'
+#   - 'plan-changes' is seen as 'rejected'
+#   - SPECIAL: comment with "this series" applies to every patches in the
+#     series
+# - Do not take Phabricator review status into consideration. This bypasses
+#   blocking reviewers, non-sticky setting and unknown statuses.
+_seriesRe = /\bth(e|is) series\b/i
+getStatusCalculator = (revs, getSeriesId) ->
+  byId = _.keyBy(revs, (r) -> r.id)
+
+  seriesActions = {} # {seriesId: [(user, date, 'accept' | 'reject')]}
+  revActions = {} # {revId: [(user, date, 'accept' | 'reject' | 'update')]}
+  revs.forEach (r) ->
+    seriesId = getSeriesId(r.id)
+    _.values(_.groupBy(r.actions, (t) -> "#{t.dateCreated}.#{t.author}")).forEach (actions) ->
+      ctime = parseInt(actions[0].dateCreated)
+      author = actions[0].author
+      verb = isSeries = null
+      actions.forEach (action) ->
+        if _.includes(['plan-changes', 'reject'], action.type)
+          verb = 'reject'
+        else if action.type == 'accept'
+          verb = 'accept'
+        else if action.type == 'update' || action.type == 'request-review'
+          verb = action.type
+        else if action.type == 'comment'
+          isSeries ||= _seriesRe.exec(action.comment)
+      if verb
+        if isSeries
+          # a series action
+          (seriesActions[seriesId] ||= []).push [author, ctime, verb]
+        else
+          # a single revision action
+          (revActions[r.id] ||= []).push [author, ctime, verb]
+
+  # return {'accept': [unixname], 'reject': [unixname]}
+  _.memoize (revId) ->
+    seriesId = getSeriesId(revId)
+    accepts = []
+    rejects = []
+    # combine normal actions and series actions
+    actions = (seriesActions[seriesId] || []).concat(revActions[revId])
+    _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach ([user, ctime, verb]) ->
+      if verb == 'request-review'
+        accepts = []
+        rejects = []
+      else if verb == 'update'
+        rejects = []
+      else if verb == 'accept'
+        accepts.push(user)
+      else if verb == 'reject'
+        accepts = []
+        rejects.push(user)
+    {accepts: _.uniq(accepts), rejects: _.uniq(rejects)}
 
 # Group by series for selected revs and sort them
-groupRevs = (state, revs, seriesId, topoSort) -> # [rev] -> [[rev]]
+groupRevs = (state, revs, getSeriesId, topoSort) -> # [rev] -> [[rev]]
   allRevs = state.revisions
-  # seriesId: [rev]
-  sortRevsByDep = _.groupBy(revs, (r) -> seriesId(r.id))
+  # {seriesId: [rev]}
+  sortRevsByDep = _.groupBy(revs, (r) -> getSeriesId(r.id))
   # config: do we always include entire series even if only few revs are picked
   if state.config.noFullSeries # do not include full series
     showRevsByDep = sortRevsByDep
   else # include full series
-    showRevsByDep = _.groupBy(allRevs, (r) -> seriesId(r.id))
+    showRevsByDep = _.groupBy(allRevs, (r) -> getSeriesId(r.id))
   # for series, use selected sort function
   entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
   groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
@@ -268,6 +328,7 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
 
 # Transaction to human readable text
 describeAction = (action) ->
+  # See "ACTIONKEY" under phabricator/src/applications/differential/xaction
   verb = {
     'inline': 'commented inline'
     'comment': 'commented'
@@ -280,6 +341,7 @@ describeAction = (action) ->
     'reclaim': 'reclaimed the revision'
     'reopen': 'reopened the revision'
     'plan-changes': 'planned changes'
+    'request-review': 'requested review'
     'commandeer': 'commandeered the revision'
   }[action.type]
   if not verb
@@ -366,7 +428,7 @@ renderActionSelector = (state) ->
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
           option key: i, disabled: selected[name], value: "F#{JSON.stringify([title, name])}", "#{name}#{selected[name] && ' (*)' || ''}"
-    option value: 'Ks', ' Toggle Full Series Display'
+    option value: 'Ks', state.config.noFullSeries && 'Show Full Series' || 'Show Partial Series'
     option value: 'K~', 'Interface Editor'
 
 renderProfile = (state, username, opts = {}) ->
@@ -500,9 +562,11 @@ renderLoadingIndicator = (state) ->
     return renderLoadingIndicator(state)
 
   normalizeState state
-  revs = filterRevs(state, state.revisions)
-  [seriesId, topoSort] = getTopoSorter(state)
-  grevs = groupRevs(state, revs, seriesId, topoSort)
+  allRevs = state.revisions
+  [getSeriesId, topoSort] = getTopoSorter(allRevs)
+  getStatus = getStatusCalculator(allRevs, getSeriesId)
+  revs = filterRevs(state, getStatus)
+  grevs = groupRevs(state, revs, getSeriesId, topoSort)
   installKeyboardShortcuts state, grevs, topoSort
 
   div className: 'yadda',
