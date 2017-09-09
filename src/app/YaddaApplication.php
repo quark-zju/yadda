@@ -15,7 +15,7 @@ final class YaddaApplication extends PhabricatorApplication {
   }
 
   public function getShortDescription() {
-    return 'Yet another dashboard';
+    return 'Yet Another Dashboard';
   }
 
   public function getRoutes() {
