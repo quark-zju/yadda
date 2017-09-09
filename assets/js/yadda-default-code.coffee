@@ -80,25 +80,30 @@ filterRevs = (state) ->
         revs = func(revs, state)
   revs
 
-# Group by stack and sort them
+# Group by series for selected revs and sort them
 groupRevs = (state, revs) -> # [rev] -> [[rev]]
   allRevs = state.revisions
   byId = _.keyBy(allRevs, (r) -> r.id)
   getDep = _.memoize((revId) ->
     _.min(byId[revId].dependsOn.map((i) -> getDep(i))) || revId)
-  gmap = _.groupBy(revs, (r) -> getDep(r.id))
+  # seriesId: [rev]
+  sortRevsByDep = _.groupBy(revs, (r) -> getDep(r.id))
+  # config: do we always include entire series even if only few revs are picked
+  if state.config.noFullSeries # do not include full series
+    showRevsByDep = sortRevsByDep
+  else # include full series
+    showRevsByDep =_.groupBy(allRevs, (r) -> getDep(r.id))
   # for series, use selected sort function
   entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
   groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
-  gsorted = _.sortBy(_.values(gmap), (revs) -> groupSortKey(revs, state))
+  gsorted = _.sortBy(_.keys(sortRevsByDep), (d) -> groupSortKey(sortRevsByDep[d], state))
   if state.activeSortDirection == -1
     gsorted = _.reverse(gsorted)
   # within a series, sort by dependency topology
   getDepChain = _.memoize((revId) ->
     depends = byId[revId].dependsOn
     _.join(_.concat(depends.map(getDepChain), [_.padStart(revId, 8)])))
-  window.getDepChain = getDepChain
-  gsorted.map (revs) -> _.reverse(_.sortBy(revs, (r) -> getDepChain(r.id)))
+  gsorted.map (d) -> _.reverse(_.sortBy(showRevsByDep[d], (r) -> getDepChain(r.id)))
 
 # Mark as read - record dateModified
 markAsRead = (state, markDate = null) ->
@@ -150,6 +155,8 @@ normalizeState = (state) ->
     syncProperty 'readMap', {}, syncRemotely
   if not state.checked
     syncProperty 'checked', {} # do not sync remotely
+  if not state.config
+    syncProperty 'config', {}, syncRemotely
 
 # Make selected rows visible
 scrollIntoView = ->
@@ -212,9 +219,11 @@ installKeyboardShortcuts = (state, grevs) ->
   shortcutKey ['O'], 'Open all of focused revisions in new tabs.', ->
     state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
 
-  shortcutKey 'a', 'Archive selected revisions (mark as no new updates).', -> markAsRead state
-  shortcutKey 'm', 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
-  shortcutKey 'U', 'Mark selected revisions as unread (if last activity is not by you).', -> markAsRead state, 0
+  shortcutKey ['a'], 'Archive selected revisions (mark as no new updates).', -> markAsRead state
+  shortcutKey ['m'], 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
+  shortcutKey ['U'], 'Mark selected revisions as unread (if last activity is not by you).', -> markAsRead state, 0
+
+  shortcutKey ['s'], 'Toggle always show full series.', -> c = state.config; c.noFullSeries = not c.noFullSeries; state.config = c
 
   copyIds = (ids) -> copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
 
@@ -288,25 +297,24 @@ renderActionSelector = (state) ->
       t = state.activeFilter
       t[title] = name
       state.activeFilter = t
-    else if v[0] == 'A'
-      state[v[1..]].getHandler()()
-    else if v[0] == 'E'
-      popupEditor()
+    else if v[0] == 'K'
+      triggerShortcutKey v[1..]
   checked = _.keys(_.pickBy(state.checked))
   select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
     option value: '+'
     if checked.length > 0
       optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
-        option value: 'AkeyMarkRead', 'Archive'
-        option value: 'AkeyMarkReadForever', 'Mute'
-        option value: 'AkeyMarkUnread', 'Mark Unread'
+        option value: 'Ka', 'Archive'
+        option value: 'Km', 'Mute'
+        option value: 'KU', 'Mark Unread'
     getFilterGroups(state).map ([title, filters], j) ->
       selectedName = active[title] || filters[0][0]
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
           selected = name == selectedName
           option key: i, disabled: selected, value: "F#{JSON.stringify([title, name])}", "#{name}#{selected && ' (*)' || ''}"
-    option value: 'E', 'Page Editor'
+    option value: 'Ks', ' Toggle Full Series Display'
+    option value: 'K~', 'Page Editor'
 
 renderProfile = (state, username, opts = {}) ->
   profile = state.profileMap[username]
@@ -335,12 +343,14 @@ renderActivities = (state, rev, actions, extraClassName = '') ->
   append()
   elements
 
-renderTable = (state, grevs) ->
+renderTable = (state, grevs, filteredRevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
   currRevs = _.keyBy(state.currRevs)
+  # grevs could include revisions not in filteredRevs for series completeness
+  selectedRevIds = _.keyBy(filteredRevs, (r) -> r.id)
   readMap = state.readMap # {id: dateModified}
   checked = state.checked
-  columnCount = 7
+  columnCount = 7 # used by "colSpan" - count "th" below
 
   handleCheckedChange = (id, e) ->
     checked = state.checked
@@ -384,7 +394,7 @@ renderTable = (state, grevs) ->
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
-          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
+          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{selectedRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'} selector-indicator"
             td className: 'author',
               if r.author != lastAuthor
@@ -443,7 +453,7 @@ renderLoadingIndicator = (state) ->
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
-          renderTable state, grevs
+          renderTable state, grevs, revs
           span className: 'table-bottom-info',
             span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
               "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
@@ -473,6 +483,8 @@ stylesheet = """
 .yadda tr.read { background: #f0f6fa; }
 .yadda tr.read.muted { background: #f8e9e8; }
 .yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
+.yadda tr.passive-appear { background-color: #F7F7F7; }
+.yadda tr.passive-appear td.title, .yadda tr.passive-appear td.time, .yadda tr.passive-appear td.size { opacity: 0.5; }
 .yadda tr.selected, .yadda tr.selected:hover { background-color: #FDF3DA; }
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }

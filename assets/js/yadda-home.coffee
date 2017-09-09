@@ -33,7 +33,8 @@ state =
             v = loads(localStorage[name])
         # replace "null" or "undefined" (but not "false") to fallback
         if v == null || v == undefined
-          v = fallback
+          # code may modify fallback by mistake
+          v = _.clone(fallback)
         v
       set: (v) ->
         if _.isEqual(v, fallback)
@@ -84,6 +85,11 @@ shortcutKey = (keys, desc, handler) ->
     k.register()
   k.setDescription(desc)
   k.setHandler(handler)
+
+triggerShortcutKey = (key) ->
+  for name, entry of _registeredKeys
+    if _.includes(JSON.parse(name), key)
+      entry.getHandler()()
 
 _init = ->
   # whether to sync remotely, default true. The option itself won't be synced.
