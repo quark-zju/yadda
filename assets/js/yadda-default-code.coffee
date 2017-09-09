@@ -25,7 +25,7 @@ getFilterGroups = (state, getStatus) ->
   # [name, filterFunc]
   reviewFilters = [
     ['Needs 1st Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length == 0 && getStatus(r.id).rejects.length == 0]
-    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length > 0 && getStatus(r.id).rejects.length == 0]
+    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length > 0]
     ['Needs Revision', (revs) -> revs.filter (r) -> getStatus(r.id).rejects.length > 0]
   ]
 
@@ -127,7 +127,6 @@ sensibleActionType = (action) ->
 # - Set '_status: {accept: [username], reject: [username]}'
 #   - accept is sticky
 #   - reject is not sticky
-#   - accept and reject override each other
 #   - 'request-review'
 #   - 'plan-changes' is seen as 'rejected'
 #   - SPECIAL: comment with "this series" applies to every patches in the
@@ -189,7 +188,6 @@ getStatusCalculator = (state, getSeriesId) ->
       else if verb == 'update'
         rejects = []
       else if verb == 'accept'
-        rejects = []
         accepts.push(user)
       else if verb == 'reject'
         accepts = []
