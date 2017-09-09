@@ -403,24 +403,29 @@ cycleSortKeys = (state, sortKeys) ->
 
 changeFilter = (state, title, name, multiple = false) ->
   active = state.activeFilter
-  if not _.isObject(active[title]) or not multiple
-    active[title] = {}
+  if _.isEqual(active[title], [name])
+    active[title] = []
+  else if not _.isArray(active[title]) or not multiple
+    active[title] = [name]
     showNux state, 'multi-filter', 'Hint: Hold "Ctrl" and click to select (or remove) multiple filters.'
   else
-    active[title] ||= {}
+    v = (active[title] ||= [])
+    if _.includes(v, name)
+      active[title] = _.without(v, name)
+    else
+      v.push(name)
     markNux state, 'multi-filter'
-  active[title][name] = !active[title][name]
   state.activeFilter = active
 
 getSelectedFilters = (activeFilter, title, filters) ->
-  if activeFilter[title]
-    activeFilter[title]
+  result = {}
+  if _.isArray(activeFilter[title])
+    activeFilter[title].forEach (f) -> result[f] = true
   else
     # pick the first one as default
-    result = {}
     if filters.length > 0
       result[filters[0][0]] = true
-    result
+  result
 
 # React elements
 {a, button, div, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
