@@ -43,9 +43,9 @@ getFilterGroups = (state) ->
     ['Archived', (revs) -> revs.filter (r) -> t = getDateRead(state, readMap, r); getDateModified(r) <= t && t != _muteDate]
   ]
 
-  repos = _.uniq(state.revisions.map((r) -> r.callsign || _noFilter))
-  repos = _.sortBy(repos, (r) -> [r == _noFilter, r.length, r])
-  repoFilters = repos.map (repo) -> [repo, ((revs) -> revs.filter (r) -> r.callsign == repo || repo == _noFilter)]
+  repos = _.uniq(state.revisions.map((r) -> r.callsign || 'Unnamed'))
+  repos = _.sortBy(repos, (r) -> [r == 'Unnamed', r.length, r])
+  repoFilters = repos.map (repo) -> [repo, (revs) -> revs.filter (r) -> r.callsign == repo || (!r.callsign && repo == 'Unnamed')]
 
   # [(group title, [(name, filterFunc)])]
   [
@@ -65,19 +65,21 @@ sortKeyFunctions = [
   ['line count', (revs, state) -> _.sum(revs.map (r) -> parseInt(r.lineCount))]
 ]
 
-_noFilter = 'All'
-
 # Use selected query and repo to filter revisions
 filterRevs = (state) ->
   revs = state.revisions
   active = state.activeFilter
   getFilterGroups(state).map ([title, filters]) ->
-    selectedName = active[title] || filters[0][0]
-    entry = _.find(filters, (f) -> f[0]  == selectedName)
-    if entry
-      func = entry[1]
-      if func
-        revs = func(revs, state)
+    selected = getSelectedFilters(active, title, filters)
+    subrevs = null
+    filters.forEach ([name, func]) ->
+      if selected[name]
+        if subrevs == null
+          subrevs = func(revs, state)
+        else
+          subrevs = _.uniqBy(subrevs.concat(func(revs, state)), (r) -> r.id)
+    if subrevs != null
+      revs = subrevs
   revs
 
 # Generate utilities for topology sorting
@@ -280,23 +282,44 @@ cycleSortKeys = (state, sortKeys) ->
   else
     state.activeSortDirection = 1
 
+changeFilter = (state, title, name, multiple = false) ->
+  active = state.activeFilter
+  if not _.isObject(active[title]) or not multiple
+    active[title] = {}
+  else
+    active[title] ||= {}
+  active[title][name] = !active[title][name]
+  state.activeFilter = active
+
+getSelectedFilters = (activeFilter, title, filters) ->
+  if activeFilter[title]
+    activeFilter[title]
+  else
+    # pick the first one as default
+    result = {}
+    if filters.length > 0
+      result[filters[0][0]] = true
+    result
+
 # React elements
 {a, button, div, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
 renderFilterList = (state) ->
   active = state.activeFilter
+  handleFilterClick = (e, title, name) ->
+    changeFilter state, title, name, e.ctrlKey
+    e.preventDefault()
+    e.stopPropagation()
+
   getFilterGroups(state).map ([title, filters]) ->
-    if not _.some(filters, (f) -> f[0] == _noFilter)
-      filters.push([_noFilter, (revs) -> revs])
-    selectedName = active[title] || filters[0][0]
+    selected = getSelectedFilters(active, title, filters)
 
     ul className: 'phui-list-view', key: title,
       li className: 'phui-list-item-view phui-list-item-type-label',
         span className: 'phui-list-item-name', title
       filters.map ([name, func], i) ->
-        selected = (selectedName == name)
-        li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected and 'phui-list-item-selected'}",
-          a className: 'phui-list-item-href', href: '#', onClick: (-> t = state.activeFilter; t[title] = name; state.activeFilter = t),
+        li key: name, className: "phui-list-item-view phui-list-item-type-link #{selected[name] and 'phui-list-item-selected'}",
+          a className: 'phui-list-item-href', href: '#', onClick: ((e) -> handleFilterClick(e, title, name)),
             span className: 'phui-list-item-name', name
 
 renderActionSelector = (state) ->
@@ -305,9 +328,7 @@ renderActionSelector = (state) ->
     v = e.target.value
     if v[0] == 'F'
       [title, name] = JSON.parse(v[1..])
-      t = state.activeFilter
-      t[title] = name
-      state.activeFilter = t
+      changeFilter state, title, name
     else if v[0] == 'K'
       triggerShortcutKey v[1..]
     e.target.blur()
@@ -320,13 +341,12 @@ renderActionSelector = (state) ->
         option value: 'Km', 'Mute'
         option value: 'KU', 'Mark Unread'
     getFilterGroups(state).map ([title, filters], j) ->
-      selectedName = active[title] || filters[0][0]
+      selected = getSelectedFilters(active, title, filters)
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
-          selected = name == selectedName
-          option key: i, disabled: selected, value: "F#{JSON.stringify([title, name])}", "#{name}#{selected && ' (*)' || ''}"
+          option key: i, disabled: selected[name], value: "F#{JSON.stringify([title, name])}", "#{name}#{selected[name] && ' (*)' || ''}"
     option value: 'Ks', ' Toggle Full Series Display'
-    option value: 'K~', 'Page Editor'
+    option value: 'K~', 'Interface Editor'
 
 renderProfile = (state, username, opts = {}) ->
   profile = state.profileMap[username]
