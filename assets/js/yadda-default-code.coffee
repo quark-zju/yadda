@@ -172,61 +172,6 @@ copyWithNotif = (text) ->
 _lastIndex = -1
 _muteDate = Number.MAX_SAFE_INTEGER
 installKeyboardShortcuts = (state, grevs) ->
-  if not state.keyNext?
-    (state.keyNext = new JX.KeyboardShortcut(['j'], 'Select revisions in the next stack.')).register()
-  if not state.keyPrev?
-    (state.keyPrev = new JX.KeyboardShortcut(['k'], 'Select revisions in the previous stack.')).register()
-  if not state.keyNextSingle?
-    (state.keyNextSingle = new JX.KeyboardShortcut(['J'], 'Select the next revision.')).register()
-  if not state.keyPrevSingle?
-    (state.keyPrevSingle = new JX.KeyboardShortcut(['K'], 'Select the previous revision.')).register()
-  if not state.keySelAll?
-    (state.keySelAll = new JX.KeyboardShortcut(['*'], 'Select all revision in the current view.')).register()
-  if not state.keyToggle?
-    k = (new JX.KeyboardShortcut(['x'], 'Toggle checkboxes for selected revisions.')).setHandler ->
-      checked = state.checked
-      value = not ((state.currRevs || []).some (r) -> checked[r])
-      (state.currRevs || []).forEach (r) -> checked[r] = value
-      state.checked = checked
-    (state.keyToggle = k).register()
-  if not state.keyOpen?
-    k = (new JX.KeyboardShortcut(['o'], 'Open one of selected revisions in a new tab.')).setHandler ->
-      r = _.min(state.currRevs)
-      if r
-        window.open("/D#{r}", '_blank')
-    (state.keyOpen = k).register()
-  if not state.keyOpenAll?
-    k = (new JX.KeyboardShortcut(['O'], 'Open all of selected revisions in new tabs.')).setHandler ->
-      state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
-    (state.keyOpenAll = k).register()
-  if not state.keyMarkRead?
-    k = (new JX.KeyboardShortcut(['a'], 'Archive revisions with checkbox ticked (mark as read).')).setHandler ->
-      markAsRead state
-    (state.keyMarkRead = k).register()
-  if not state.keyMarkReadForever?
-    k = (new JX.KeyboardShortcut(['m'], 'Mute revisions with checkbox ticked (mark as read forever).')).setHandler ->
-      markAsRead state, _muteDate
-    (state.keyMarkReadForever = k).register()
-  if not state.keyMarkUnread?
-    k = (new JX.KeyboardShortcut(['U'], 'Mark revisions with checkbox ticked as not read.')).setHandler ->
-      markAsRead state, 0
-    (state.keyMarkUnread = k).register()
-  if state.user and not state.keyReload?
-    k = (new JX.KeyboardShortcut(['r'], 'Fetch updates from server immediately.')).setHandler -> refresh()
-    (state.keyReload = k).register()
-  if document.queryCommandSupported('copy')
-    if not state.keyCopy?
-      k = (new JX.KeyboardShortcut(['c'], 'Copy selected revision numbers to clipboard.')).setHandler ->
-        ids = state.currRevs || []
-        ids = _.sortBy(ids, parseInt)
-        copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
-      (state.keyCopy = k).register()
-    if not state.keyCopyChecked?
-      k = (new JX.KeyboardShortcut(['C'], 'Copy revision numbers with checkbox ticked to clipboard.')).setHandler ->
-        ids = _.keys(_.pickBy(state.checked))
-        ids = _.sortBy(ids, parseInt)
-        copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
-      (state.keyCopyChecked = k).register()
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
     if singleSelection
@@ -239,20 +184,46 @@ installKeyboardShortcuts = (state, grevs) ->
     if index == -1
       index = _lastIndex # best-effort guess when things got deleted
     _lastIndex = index
-  [[true, state.keyNextSingle, state.keyPrevSingle], [false, state.keyNext, state.keyPrev]].forEach (x) ->
-    [single, next, prev] = x
-    next.setHandler ->
-      revIds = getRevIds(single)
+  focusNext = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.min([i + 1, revIds.length - 1])] || []
       setTimeout scrollIntoView, 100
-    prev.setHandler ->
-      revIds = getRevIds(single)
+  focusPrev = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.max([i - 1, 0])] || []
       setTimeout scrollIntoView, 100
-  state.keySelAll.setHandler ->
-    state.currRevs = _.flatten(_.values(grevs)).map(toId)
+
+  shortcutKey ['j'], 'Focus on revisions of the next series.', -> focusNext(getRevIds(false))
+  shortcutKey ['k'], 'Focus on revisions of the previous series.', -> focusPrev(getRevIds(false))
+  shortcutKey ['J'], 'Focus on the next single revision.', -> focusNext(getRevIds(true))
+  shortcutKey ['K'], 'Focus on the previous single revision.', -> focusPrev(getRevIds(true))
+  shortcutKey ['*'], 'Focus on all revisions in the current view.', -> state.currRevs = _.flatten(_.values(grevs)).map(toId)
+
+  shortcutKey ['x'], 'Toggle selection for focused revisions.', ->
+    checked = state.checked
+    value = not ((state.currRevs || []).some (r) -> checked[r])
+    (state.currRevs || []).forEach (r) -> checked[r] = value
+    state.checked = checked
+
+  shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
+    r = _.min(state.currRevs)
+    if r
+      window.open("/D#{r}", '_blank')
+  shortcutKey ['O'], 'Open all of focused revisions in new tabs.', ->
+    state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
+
+  shortcutKey 'a', 'Archive selected revisions (mark as no new updates).', -> markAsRead state
+  shortcutKey 'm', 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
+  shortcutKey 'U', 'Mark selected revisions as unread (if last activity is not by you).', -> markAsRead state, 0
+
+  copyIds = (ids) -> copyWithNotif _.join(ids.map((id) -> "D#{id}"), '+')
+
+  shortcutKey ['c'], 'Copy focused revision numbers to clipboard.', -> copyIds(state.currRevs || [])
+  shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
+
+  # Refresh only works for logged-in user. Since otherwise there is no valid CSRF token for Conduit API.
+  if state.user
+    shortcutKey ['r'], 'Fetch updates from server immediately.', refresh
 
 # Transaction to human readable text
 describeAction = (action) ->
