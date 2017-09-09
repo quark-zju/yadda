@@ -169,6 +169,25 @@ normalizeState = (state) ->
     syncProperty 'checked', {} # do not sync remotely
   if not state.config
     syncProperty 'config', {}, syncRemotely
+  if not state.readNux
+    syncProperty 'readNux', {}, syncRemotely
+
+# Show NUX notification
+_shownNux = {}
+markNux = (state, type) ->
+  readNux = state.readNux || {}
+  if not readNux[type]
+    readNux[type] = true
+    state.readNux = readNux
+showNux = (state, type, html, duration = null) ->
+  if state.readNux[type] || _shownNux[type]
+    return
+  duration ||= (html.length * 50) + 5000
+  node = JX.$H("<div>#{html}<br/><a class=\"got-it\">Got it</a></div>").getNode()
+  gotIt = node.querySelector('a.got-it')
+  gotIt.onclick = -> markNux state, type
+  _shownNux[type] = true
+  notify node, duration
 
 # Make selected rows visible
 scrollIntoView = ->
@@ -179,13 +198,6 @@ scrollIntoView = ->
   document.querySelectorAll('td.selected').forEach (e) ->
     if not isVisible(e)
       e.scrollIntoView()
-
-# Copy to clipboard
-copyWithNotif = (text) ->
-  if not text
-    return
-  copy(text)
-  notify("Copied: #{text}")
 
 # Keyboard shortcuts
 _lastIndex = -1
@@ -235,12 +247,19 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
   shortcutKey ['m'], 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
   shortcutKey ['U'], 'Mark selected revisions as unread (if last activity is not by you).', -> markAsRead state, 0
 
-  shortcutKey ['s'], 'Toggle always show full series.', -> c = state.config; c.noFullSeries = not c.noFullSeries; state.config = c
+  shortcutKey ['s'], 'Toggle always show full series.', ->
+    markNux state, 'grey-rev'
+    c = state.config; c.noFullSeries = not c.noFullSeries; state.config = c
 
   copyIds = (ids) ->
-    copyWithNotif _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
+    text = _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
+    if not text
+      return
+    copy(text)
+    notify("Copied: #{text}")
+    showNux(state, 'import-closed', 'Hint: use <tt>hg phabread \'$CLIPBOARD - closed\'</tt> to skip reading closed revisions.')
 
-  shortcutKey ['c'], 'Copy focused revision numbers to clipboard.', -> copyIds(state.currRevs || [])
+  shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
   shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
 
   # Refresh only works for logged-in user. Since otherwise there is no valid CSRF token for Conduit API.
@@ -286,8 +305,10 @@ changeFilter = (state, title, name, multiple = false) ->
   active = state.activeFilter
   if not _.isObject(active[title]) or not multiple
     active[title] = {}
+    showNux state, 'multi-filter', 'Hint: Hold "Ctrl" and click to select (or remove) multiple filters.'
   else
     active[title] ||= {}
+    markNux state, 'multi-filter'
   active[title][name] = !active[title][name]
   state.activeFilter = active
 
@@ -379,7 +400,7 @@ renderTable = (state, grevs, filteredRevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
   currRevs = _.keyBy(state.currRevs)
   # grevs could include revisions not in filteredRevs for series completeness
-  selectedRevIds = _.keyBy(filteredRevs, (r) -> r.id)
+  filteredRevIds = _.keyBy(filteredRevs, (r) -> r.id)
   readMap = state.readMap # {id: dateModified}
   checked = state.checked
   columnCount = 7 # used by "colSpan" - count "th" below
@@ -404,9 +425,12 @@ renderTable = (state, grevs, filteredRevs) ->
         th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
         th className: 'size', style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
         if state.activeSortKey == 'created'
+          markNux state, 'sort-created'
           columnCount += 1
           th className: 'time created', style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
-        th className: 'time updated', style: {width: 90}, onClick: (-> cycleSortKeys state, ['updated', 'created']), 'Updated'
+        th className: 'time updated', style: {width: 90}, onClick: (->
+          showNux state, 'sort-created', 'Hint: Click at "Updated" the 3rd time to sort revisions by creation time'
+          cycleSortKeys state, ['updated', 'created']), 'Updated'
         # checkbox
         th style: {width: 28, padding: '8px 0px'}
     if grevs.length == 0
@@ -426,7 +450,11 @@ renderTable = (state, grevs, filteredRevs) ->
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
 
-          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{selectedRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
+          # NUX prompts about certain cases
+          if currRevs[r.id]
+            if !filteredRevIds[r.id]
+              showNux state, 'grey-rev', 'Hint: Some revisions are greyed out because they are filtered out, but another revision in a same patch series is not. Press <kbd>s</kbd> to toggle display of those patches.'
+          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{filteredRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'} selector-indicator"
             td className: 'author',
               if r.author != lastAuthor
@@ -451,7 +479,9 @@ renderTable = (state, grevs, filteredRevs) ->
                 else
                   time.format('MMM D')
             td className: 'checkbox',
-              input type: 'checkbox', checked: (checked[r.id] || false), onChange: handleCheckedChange.bind(this, r.id)
+              input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
+                showNux state, 'key-help', 'Hint: Press <kbd>?</kbd> to view keyboard shortcuts. Some features are only accessible from keyboard.'
+                handleCheckedChange(r.id, e)
 
 renderLoadingIndicator = (state) ->
   if state.error
@@ -525,6 +555,7 @@ stylesheet = """
 .yadda .action-selector { border: 0; border-radius: 0; }
 .yadda .action-selector:focus { outline: none; }
 .yadda .yadda-content { margin-bottom: 16px }
+.got-it { margin-top: 8px; margin-right: 12px; display: block; float: right; }
 .device-desktop .action-selector, .device-tablet .action-selector { float: right; padding: 0 16px; background-color: transparent; }
 .device-desktop .action-selector { margin: 0 0 -34px; height: 34px; }
 .device-desktop .action-selector optgroup.filter { display: none; }
