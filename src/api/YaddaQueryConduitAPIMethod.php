@@ -152,9 +152,6 @@ EOT
           $phid_callsign_map, $revision->getRepositoryPHID()),
         'title'        => $revision->getTitle(),
         'author'       => $phid_author_map[$revision->getAuthorPHID()],
-        'status'       =>
-          ArcanistDifferentialRevisionStatus::getNameForRevisionStatus(
-            $revision->getStatus()),
         'summary'      => $revision->getSummary(),
         'testPlan'     => $revision->getTestPlan(),
         'lineCount'    => $revision->getLineCount(),
@@ -167,6 +164,13 @@ EOT
         'dateCreated'  => $revision->getDateCreated(),
         'dateModified' => $revision->getDateModified(),
       );
+      if (method_exists($revision, 'getStatusDisplayName')) {
+        $desc['status'] = $revision->getStatusDisplayName();
+      } else {
+        $desc['status'] = 
+          ArcanistDifferentialRevisionStatus::getNameForRevisionStatus(
+            $revision->getStatus());
+      }
       $revision_descs[] = $desc;
     }
 
