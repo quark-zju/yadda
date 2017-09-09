@@ -124,6 +124,7 @@ sensibleActionType = (action) ->
 # - Set '_status: {accept: [username], reject: [username]}'
 #   - accept is sticky
 #   - reject is not sticky
+#   - accept and reject override each other
 #   - 'request-review'
 #   - 'plan-changes' is seen as 'rejected'
 #   - SPECIAL: comment with "this series" applies to every patches in the
@@ -185,6 +186,7 @@ getStatusCalculator = (state, getSeriesId) ->
       else if verb == 'update'
         rejects = []
       else if verb == 'accept'
+        rejects = []
         accepts.push(user)
       else if verb == 'reject'
         accepts = []
