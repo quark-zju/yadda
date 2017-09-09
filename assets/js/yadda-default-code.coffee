@@ -299,6 +299,7 @@ renderActionSelector = (state) ->
       state.activeFilter = t
     else if v[0] == 'K'
       triggerShortcutKey v[1..]
+    e.target.blur()
   checked = _.keys(_.pickBy(state.checked))
   select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
     option value: '+'
