@@ -185,7 +185,7 @@ copyWithNotif = (text) ->
   if not text
     return
   copy(text)
-  new JX.Notification().setContent("Copied: #{text}").setDuration(3000).show()
+  notify("Copied: #{text}")
 
 # Keyboard shortcuts
 _lastIndex = -1
