@@ -98,7 +98,9 @@ getTopoSorter = (allRevs) ->
       _.sortBy(revsOrIds, (r) -> getSeriesIdChain(r.id))
   [getSeriesId, topoSort]
 
-# Return a function getStatus: (revId) -> {accepts: [user], rejects: [user]}
+# Return a function:
+# - getStatus: (revId) -> {accepts: [user], rejects: [user]}
+# Update state.readMap according to series commented status
 # Re-calculate revision statuses using 'actions' data.
 # - Set '_status: {accept: [username], reject: [username]}'
 #   - accept is sticky
@@ -110,11 +112,16 @@ getTopoSorter = (allRevs) ->
 # - Do not take Phabricator review status into consideration. This bypasses
 #   blocking reviewers, non-sticky setting and unknown statuses.
 _seriesRe = /\bth(e|is) series\b/i
-getStatusCalculator = (revs, getSeriesId) ->
+getStatusCalculator = (state, getSeriesId) ->
+  revs = state.revisions
+  readMap = state.readMap
   byId = _.keyBy(revs, (r) -> r.id)
 
+  seriesDateRead = {} # {seriesId: int}
   seriesActions = {} # {seriesId: [(user, date, 'accept' | 'reject')]}
   revActions = {} # {revId: [(user, date, 'accept' | 'reject' | 'update')]}
+
+  # populate above internal states
   revs.forEach (r) ->
     seriesId = getSeriesId(r.id)
     _.values(_.groupBy(r.actions, (t) -> "#{t.dateCreated}.#{t.author}")).forEach (actions) ->
@@ -130,6 +137,9 @@ getStatusCalculator = (revs, getSeriesId) ->
           verb = action.type
         else if action.type == 'comment'
           isSeries ||= _seriesRe.exec(action.comment)
+      if isSeries && author == state.user
+        seriesDateRead[seriesId] ||= 0
+        seriesDateRead[seriesId] = _.max([seriesDateRead[seriesId], ctime])
       if verb
         if isSeries
           # a series action
@@ -137,6 +147,18 @@ getStatusCalculator = (revs, getSeriesId) ->
         else
           # a single revision action
           (revActions[r.id] ||= []).push [author, ctime, verb]
+
+  # update readMap
+  readMapChanged = false
+  revs.forEach (r) ->
+    stime = seriesDateRead[getSeriesId(r.id)]
+    if stime
+      atime = getDateRead(state, readMap, r)
+      if atime < stime
+        readMap[r.id] = stime
+        readMapChanged = true
+  if readMapChanged
+    state.readMap = readMap
 
   # return {'accept': [unixname], 'reject': [unixname]}
   _.memoize (revId) ->
@@ -564,7 +586,7 @@ renderLoadingIndicator = (state) ->
   normalizeState state
   allRevs = state.revisions
   [getSeriesId, topoSort] = getTopoSorter(allRevs)
-  getStatus = getStatusCalculator(allRevs, getSeriesId)
+  getStatus = getStatusCalculator(state, getSeriesId)
   revs = filterRevs(state, getStatus)
   grevs = groupRevs(state, revs, getSeriesId, topoSort)
   installKeyboardShortcuts state, grevs, topoSort
