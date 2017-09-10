@@ -344,7 +344,7 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
       return
     copy(text)
     notify("Copied: #{text}")
-    showNux(state, 'import-closed', 'Hint: use <tt>hg phabread \'$CLIPBOARD - closed\'</tt> to skip reading closed revisions.')
+    showNux(state, 'import-closed', 'Hint: use <tt>hg phabread \':$TOP-closed\'</tt> to skip reading closed revisions.')
 
   shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
   shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
