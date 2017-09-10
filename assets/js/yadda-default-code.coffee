@@ -250,7 +250,11 @@ getDateCodeUpdated = (rev) ->
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
   storeLocally = state.defineSyncedProperty
-  storeRemotely = (name, fallback) -> state.defineSyncedProperty(name, fallback, true)
+  if state.user
+    storeRemotely = (name, fallback) -> state.defineSyncedProperty(name, fallback, true)
+  else
+    # Not logged-in, cannot store anything remotely
+    storeRemotely = storeLocally
   if not state.activeFilter
     storeLocally 'activeFilter', {}
   if not state.activeSortKey
