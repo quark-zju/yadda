@@ -436,7 +436,7 @@ showDialog = (state, name) ->
   scrollIntoView('.jx-client-dialog')
 
 # React elements
-{a, button, div, hr, h1, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
+{a, button, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
 renderFilterList = (state) ->
   active = state.activeFilter
@@ -607,8 +607,8 @@ renderLoadingIndicator = (state) ->
       state.error
   else
     div style: {textAlign: 'center', marginTop: 240, color: '#92969D'},
-      React.DOM.p null, 'Fetching data...'
-      React.DOM.progress style: {height: 10, width: 100}
+      p null, 'Fetching data...'
+      progress style: {height: 10, width: 100}
 
 renderConfigItem = (name, description, children...) ->
   div className: 'config-item',
