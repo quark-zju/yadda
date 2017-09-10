@@ -1,20 +1,19 @@
 # This is a live CoffeeScript editor affecting the Yadda interface.
-# Code change will be sent to the main Yadda page which saves it to localStorage
-# (and also to Phabricator, see below).
+# Code change will be sent to the main Yadda page which saves it to either
+# localStorage or Phabricator server depending on configuration.
 #
 # The entry point is "@render(state)" which returns ReactElement. The most
 # interesting information is "state.revisions". See /conduit/method/yadda.query
 # for what "state.revisions" look like. The "yadda.query" query will be called
 # to update "state" periodically.
 #
-# If localStorage.sync is not set to "false", most states will be synchronized
-# with Phabricator so it works across multiple machines.
-#
 # Javascript libraries LoDash, Moment.js, React.js and Javelin are available.
 
 # Pre-defined filters
 # Change this to affect the navigation side bar
 getFilterGroups = (state, getStatus) ->
+  # If "getStatus" is not passed, filter functions are incorrect, but titles
+  # are okay.
   readMap = state.readMap
 
   # Filter actions - return actions since last code update
@@ -531,10 +530,15 @@ renderActivities = (state, rev, actions, extraClassName, handleLinkClick) ->
 
 renderReviewNux = (state) ->
   # Currently the Review NUX is HG specific
-  if (state.activeFilter['Repositories'] || [])[0] != 'HG'
+  active = state.activeFilter
+  selected = {}
+  getFilterGroups(state).map ([title, filters]) ->
+    selected[title] = getSelectedFilters(active, title, filters)
+
+  if !selected['Repositories']?['HG']
     return
 
-  stage = (state.activeFilter['Review Stages'] || [])[0]
+  stage = _.findKey(selected['Review Stages'], (x) -> x)
   revId = 123 # example revId
   try
     revId = state.revisions[0].id
@@ -704,30 +708,39 @@ renderBooleanConfig = (state, name, variable, description, yesName = 'Yes', noNa
     option value: 'N', noName
 
 renderCodeSourceSelector = (state) ->
-  handleCodeReset = ->
-    if confirm('This will discard your customization to Yadda rendering code, from *both* local and remote. Do you really want to do so?')
-      state.code = state.remote.code = ''
-      state.configCodeSource = CODE_SOURCE_BUILTIN
-      state.remote.scheduleSync()
-
   renderConfigItem 'Interface Script', 'Advanced customization (ex. add a filter checking specific reviewers saying specific words) can be achieved by editing the script rendering Yadda UI.',
     span className: 'config-value',
       select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur(); markNux state, 'code-switch'), value: state.configCodeSource,
-        option value: CODE_SOURCE_BUILTIN, 'Not Customized (Default)'
+        option value: CODE_SOURCE_BUILTIN, 'Not Customized (Use Built-in)'
         option value: CODE_SOURCE_LOCAL, 'Customized (Store locally)'
         if state.user
           option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
     span className: 'config-value', style: {marginLeft: 16},
       a onClick: (-> triggerShortcutKey('~')), 'Edit'
-    span className: 'config-value', style: {marginLeft: 16},
-      a onClick: handleCodeReset, 'Reset'
+
+renderConfigReset = (state) ->
+  handleReset = ->
+      # reset local state
+      state.activeFilter = {}
+      # reset remote state
+      toRemove = ['readNux']
+      for k, v of state.remote
+        if _.startsWith(k, 'config')
+          toRemove.push(k)
+      for k in toRemove
+        delete state.remote[k]
+      state.remote.scheduleSync()
+  renderConfigItem 'Reset', 'Restore config options to default values and make hints appear again.',
+    span className: 'config-value',
+      button className: 'button-red small', onClick: handleReset, 'Reset'
 
 renderSettings = (state) ->
   div style: {margin: 16},
     div className: 'config-list',
-      renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. Choose whether D1 should be visible in this case.', 'Show Entire Series (Default)', 'Show Only Individual Revisions'
-      renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'If you can always complete reading opened revisions. Enable this to free yourself from pressing "a".', 'Enable Archive on Open', 'Disable Archive on Open (Default)'
+      renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. This controls whether D1 is visible or not.', 'Show Entire Series', 'Show Only Individual Revisions'
+      renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'Archive revisions being opened. Useful if you only want to see a patch once.', 'Enable Archive on Open', 'Disable Archive on Open'
       renderCodeSourceSelector state
+      renderConfigReset state
 
 renderDialog = (state) ->
   name = state.dialog
