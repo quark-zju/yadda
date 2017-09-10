@@ -194,13 +194,19 @@ _init = ->
       if err
         errors.push err
 
-      if scope.render
-        try
-          content = scope.render(state)
-        catch err
-          errors.push err
-      else
-        errors.push new Error('render(state) function needs to be defined')
+      if errors.length == 0
+        if scope.render
+          try
+            content = scope.render(state)
+          catch err
+            errors.push err
+        else
+          return div className: 'phui-info-view phui-info-severity-notice',
+            'render(state) needs to be defined. For example:'
+            pre style: {padding: 8, marginTop: 8, backgroundColor: '#EBECEE', overflow: 'auto'},
+              '@render = (state) ->\n'
+              '  state.revisions.map (r) ->\n'
+              '    a style: {display: "block"}, href: "/D#{r.id}", r.title'
 
       div null,
         errors.map (e, i) ->
