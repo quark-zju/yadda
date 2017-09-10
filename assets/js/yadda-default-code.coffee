@@ -836,6 +836,15 @@ renderDialog = (state) ->
           button onClick: (-> state.dialog = null), 'Looks good'
   ]
 
+renderBottomBar = (state) ->
+  span className: 'table-bottom-info',
+    span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
+      "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
+    if state.updatedAt
+      "Last update: #{state.updatedAt.calendar()}."
+    ' '
+    a onClick: (-> showDialog state, 'settings'), 'Settings'
+
 @render = (state) ->
   # Make it easier for debugging using F12 developer tools
   window.state = state
@@ -864,13 +873,7 @@ renderDialog = (state) ->
               state.error
           renderReviewNux state
           renderTable state, grevs, revs, getStatus
-          span className: 'table-bottom-info',
-            span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
-              "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
-            if state.updatedAt
-              "Last update: #{state.updatedAt.calendar()}."
-            ' '
-            a onClick: (-> showDialog state, 'settings'), 'Settings'
+          renderBottomBar state
       renderActionSelector state, 'mobile'
     renderDialog state
 
