@@ -365,6 +365,7 @@ installKeyboardShortcuts = (state, grevs, revs, topoSort) ->
   shortcutKey ['f'], 'Remove filtered out revisions from focus', ->
     revIds = _.keyBy(revs, (r) -> r.id)
     state.currRevs = state.currRevs.filter((r) -> revIds[r])
+    markNux state, 'grey-rev'
 
   shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
     r = _.min(state.currRevs)
