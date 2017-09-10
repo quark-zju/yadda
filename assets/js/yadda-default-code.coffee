@@ -138,8 +138,8 @@ getStatusCalculator = (state, getSeriesId) ->
   byId = _.keyBy(revs, (r) -> r.id)
 
   seriesDateRead = {} # {seriesId: int}
-  seriesActions = {} # {seriesId: [(user, date, 'accept' | 'reject')]}
-  revActions = {} # {revId: [(user, date, 'accept' | 'reject' | 'update')]}
+  seriesActions = {} # {seriesId: [('accept' | 'reject', action, revId)]}
+  revActions = {} # {revId: [('accept' | 'reject' | 'update', action, revId)]}
 
   # populate above internal states
   revs.forEach (r) ->
@@ -156,10 +156,10 @@ getStatusCalculator = (state, getSeriesId) ->
       if verb
         if isSeries
           # a series action
-          (seriesActions[seriesId] ||= []).push [author, ctime, verb]
+          (seriesActions[seriesId] ||= []).push [verb, x, r.id]
         else
           # a single revision action
-          (revActions[r.id] ||= []).push [author, ctime, verb]
+          (revActions[r.id] ||= []).push [verb, x, r.id]
 
   # update readMap
   readMapChanged = false
@@ -180,18 +180,18 @@ getStatusCalculator = (state, getSeriesId) ->
     rejects = []
     # combine normal actions and series actions
     actions = (seriesActions[seriesId] || []).concat(revActions[revId])
-    _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach ([user, ctime, verb]) ->
+    _.sortBy(actions, ([verb, x, rId]) -> parseInt(x.dateCreated)).forEach ([verb, x, rId]) ->
       if verb == 'request-review'
         accepts = []
         rejects = []
       else if verb == 'update'
         rejects = []
       else if verb == 'accept'
-        accepts.push(user)
+        accepts.push([rId, x])
       else if verb == 'reject'
         accepts = []
-        rejects.push(user)
-    {accepts: _.uniq(accepts), rejects: _.uniq(rejects)}
+        rejects.push([rId, x])
+    {accepts: accepts, rejects: rejects}
 
 # Group by series for selected revs and sort them
 groupRevs = (state, revs, getSeriesId, topoSort) -> # [rev] -> [[rev]]
@@ -590,7 +590,7 @@ renderReviewNux = (state) ->
     div className: 'pm',
       button className: 'button-green', onClick: (-> markNux state, nux), 'Got it!'
 
-renderTable = (state, grevs, filteredRevs) ->
+renderTable = (state, grevs, filteredRevs, getStatus) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
   currRevs = _.keyBy(state.currRevs)
   # grevs could include revisions not in filteredRevs for series completeness
@@ -609,6 +609,12 @@ renderTable = (state, grevs, filteredRevs) ->
     if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
       revId = /\/D([0-9]*)/.exec(e.currentTarget.href)[1]
       markAsRead state, null, [revId]
+
+  describeStatus = (rev) ->
+    status = getStatus(rev.id)
+    join = (xs) -> _.join(xs, '')
+    join ['accepts', 'rejects'].map (name) ->
+      join status[name].map ([rId, x]) -> "#{describeAction(x)} at D#{rId}##{x.id}\n"
 
   table className: 'aphront-table-view',
     thead null,
@@ -661,7 +667,7 @@ renderTable = (state, grevs, filteredRevs) ->
                 lastAuthor = r.author
                 renderProfile(state, r.author)
             td className: 'title', title: r.summary,
-              strong onClick: handleCheckedChange.bind(this, r.id), "D#{r.id} "
+              strong onClick: handleCheckedChange.bind(this, r.id), title: describeStatus(r), "D#{r.id} "
               a href: "/D#{r.id}", onClick: handleLinkClick,
                 strong null, r.title
             if state.activeSortKey == 'phabricator status'
@@ -789,7 +795,7 @@ renderDialog = (state) ->
             div className: 'phui-info-view phui-info-severity-error',
               state.error
           renderReviewNux state
-          renderTable state, grevs, revs
+          renderTable state, grevs, revs, getStatus
           span className: 'table-bottom-info',
             span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
               "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
