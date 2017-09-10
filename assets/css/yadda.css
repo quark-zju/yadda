@@ -2,15 +2,6 @@
  * @provides yadda-css
  */
 
-.yadda-editor {
-  position: fixed;
-  resize: both;
-  overflow: auto;
-  max-height: calc(100% - 90px);
-  max-width: calc(100% - 60px);
-  z-index: 10;
-}
-
 .yadda-root .hint-code-different {
   width: 0; 
   height: 0; 
