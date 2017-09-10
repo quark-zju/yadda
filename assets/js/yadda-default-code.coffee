@@ -431,6 +431,10 @@ getSelectedFilters = (activeFilter, title, filters) ->
       result[filters[0][0]] = true
   result
 
+showDialog = (state, name) ->
+  state.dialog = name
+  scrollIntoView('.jx-client-dialog')
+
 # React elements
 {a, button, div, hr, h1, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
@@ -700,7 +704,7 @@ renderDialog = (state) ->
             if state.updatedAt
               "Last update: #{state.updatedAt.calendar()}."
             ' '
-            a href: '#', onClick: (-> state.dialog = 'settings'), 'Settings'
+            a onClick: (-> showDialog state, 'settings'), 'Settings'
     renderDialog state
 
 stylesheet = """
