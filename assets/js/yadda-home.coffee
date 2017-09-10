@@ -37,14 +37,16 @@ state =
         v
       set: (v) ->
         d = dumps(v)
-        if _.isEqual(v, fallback) && d.length > 32 # do not "delete" short items
-          localStorage.removeItem name
-          if remote && state.remote[name]
+        if _.isEqual(v, fallback) && d.length > 32 # optimization: do not store long default values
+          if remote
             delete state.remote[name]
+          else
+            localStorage.removeItem name
         else
-          localStorage[name] = dumps(v)
           if remote
             state.remote[name] = v
+          else
+            localStorage[name] = d
         if remote
           state.remote.updatedAt = moment.now()
 
