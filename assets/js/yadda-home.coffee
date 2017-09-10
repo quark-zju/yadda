@@ -25,10 +25,9 @@ state =
       get: ->
         v = null
         # try remote first
-        if remote && state.remote[name]
+        if remote
           v = state.remote[name]
-        # fallback to localStorage
-        if v == null || v == undefined
+        else
           try
             v = loads(localStorage[name])
         # replace "null" or "undefined" (but not "false") to fallback
@@ -37,7 +36,8 @@ state =
           v = _.clone(fallback)
         v
       set: (v) ->
-        if _.isEqual(v, fallback)
+        d = dumps(v)
+        if _.isEqual(v, fallback) && d.length > 32 # do not "delete" short items
           localStorage.removeItem name
           if remote && state.remote[name]
             delete state.remote[name]
@@ -99,14 +99,31 @@ notify = (content, duration = 3000) ->
     notif.setWebReady true
   notif.show()
 
-_init = ->
-  # whether to sync remotely, default true. The option itself won't be synced.
-  state.defineSyncedProperty 'sync', true, false
-  state.defineSyncedProperty 'code', yaddaDefaultCode, state.sync
+CODE_SOURCE_REMOTE = 'remote'
+CODE_SOURCE_LOCAL = 'local'
+CODE_SOURCE_BUILTIN = 'builtin'
 
-  _request = (path, data, callback) ->
+_init = ->
+  # whether to sync code remotely (use state.remote.code), or just locally (use
+  # state.code), or use default code (use yaddaDefaultCode).
+  state.defineSyncedProperty 'configCodeSource', CODE_SOURCE_BUILTIN, true
+  state.defineSyncedProperty 'code', yaddaDefaultCode
+  _getCode = ->
+    src = state.configCodeSource
+    code = ''
+    if src == CODE_SOURCE_REMOTE
+      code = state.remote.code
+    else if src == CODE_SOURCE_LOCAL
+      code = state.code
+    if !_.isString(code) || code.length == 0
+      code = yaddaDefaultCode
+    code
+
+  _request = (path, data, callback, onError) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
     req = new (JX.Request)(path, callback)
+    if onError
+      req.listen 'error', onError
     req.setResponseType('JSON')
     req.setExpectCSRFGuard(false)
     if data
@@ -131,15 +148,28 @@ _init = ->
       _cached.scope = scope
     return [(_cached.scope || {}), _cached.err]
 
-  {div, span} = React.DOM
+  {a, button, div, pre, span} = React.DOM
   class Root extends React.Component
     handleCodeReset: ->
-      if confirm('Do you want to remove customization and use the default Yadda UI code? This cannot be undone.')
-        state.code = yaddaDefaultCode
-        _editorWin?.setCode yaddaDefaultCode # NOTE: not working across reloads
+      src = state.configCodeSource
+      state.configCodeSource = CODE_SOURCE_BUILTIN
+      furtherRestore = null
+      if src == CODE_SOURCE_LOCAL
+        furtherRestore = ->
+          if confirm('Restored to built-in UI. Do you also want to discard UI customization stored in localStorage?')
+            state.code = ''
+            state.configCodeSource = CODE_SOURCE_LOCAL
+      else if src == CODE_SOURCE_REMOTE
+        furtherRestore = ->
+          if confirm('Restored to built-in UI. Do you also want to discard UI customization stored in Phabricator server?')
+            state.remote.code = ''
+            state.remote.updatedAt = moment.now()
+            state.configCodeSource = CODE_SOURCE_REMOTE
+      if furtherRestore
+        setTimeout furtherRestore, 500
 
     render: ->
-      code = state.code
+      code = _getCode()
       content = null
       errors = []
       [scope, err] = _compile(code)
@@ -156,11 +186,20 @@ _init = ->
 
       div null,
         errors.map (e, i) ->
-          div key: i, className: 'phui-info-view phui-info-severity-warning', title: e.stack,
-            e.toString(),
+          div key: i, className: 'phui-info-view phui-info-severity-warning',
+            e.toString()
+            if e.stack
+              pre style: {padding: 8, marginTop: 8, backgroundColor: '#EBECEE', overflow: 'auto'},
+                e.stack
+        if errors.length > 0
+          div className: 'phui-info-view phui-info-severity-notice grouped',
+            'You can switch to the default UI, and optionally discard the code change to resolve errors.'
+            div className: 'phui-info-view-actions',
+              button className: 'phui-button-default', onClick: @handleCodeReset, 'Restore UI'
         content
+        # bottom-left triangle
         if code && code != yaddaDefaultCode
-          span className: 'hint-code-different', onDoubleClick: @handleCodeReset, title: 'The code driven this page has been changed so it is different from the default. If that is not intentional, double click to restore to the default code.'
+          span className: 'hint-code-different', onDoubleClick: @handleCodeReset, title: 'The code rendering this page has been changed so it is different from the built-in version. If anything breaks, double click to restore to the built-in version.'
 
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
@@ -173,7 +212,13 @@ _init = ->
     remote = state.remote
     if remote.updatedAt > _lastRemoteSync
       _lastRemoteSync = remote.updatedAt
-      _request '/api/yadda.setstate', data: JSON.stringify(remote)
+      showError = (msg) ->
+        if _.isString(msg) && msg.length > 0
+          msg = " (#{msg})"
+        else
+          msg = ''
+        notify "Failed to sync state with Phabricator server#{msg}. Check network connection or refresh this page.", 8000
+      _request '/api/yadda.setstate', data: JSON.stringify(remote), ((r) -> r.error_info && showError(r.error_info)), showError
   setInterval _syncTick, 2200
 
   refresh = ->
@@ -218,7 +263,16 @@ _init = ->
   # This works across reloads (document and the state here get lost).
   _handleWindowMessage = (e) ->
     if e.data.type == 'code-change'
-      state.code = e.data.value
+      src = state.configCodeSource
+      if src == CODE_SOURCE_BUILTIN
+        # CODE_SOURCE_BUILTIN is immutable. Change to "remote" automatically.
+        state.configCodeSource = src = CODE_SOURCE_REMOTE
+      if src == CODE_SOURCE_LOCAL
+        state.code = e.data.value
+      else if src == CODE_SOURCE_REMOTE
+        state.remote.code = e.data.value
+        state.remote.updatedAt = moment.now()
+        redraw()
   window.addEventListener 'message', _handleWindowMessage, false
 
   # Function to create the editor window
@@ -253,7 +307,7 @@ _init = ->
         editor.addEventListener 'input', (e) -> postCode e.target.value
         window.setCode = (code) -> document.querySelector('.editor').value = code
         """
-      _editorWin.setCode state.code || yaddaDefaultCode
+      _editorWin.setCode _getCode()
 
     useAce = ->
       doc.body.innerHTML = '<div class="editor"></div>'
@@ -269,7 +323,7 @@ _init = ->
           editor.clearSelection()
         window.editor = editor
         """
-      _editorWin.setCode state.code || yaddaDefaultCode
+      _editorWin.setCode _getCode()
 
     # Load ACE editor (best-effort)
     if (localStorage['editorType'] || 'ace') == 'ace'
@@ -282,10 +336,9 @@ _init = ->
       useTextarea()
 
   # The only way to access the editor is the "~" key.
-  shortcutKey ['~'], 'Pop-up live interface editor.', popupEditor
+  shortcutKey ['~'], 'Open live interface editor.', popupEditor
 
   if __DEV__
     window.state = state
-    window._cached = _cached
 
 document.addEventListener 'DOMContentLoaded', _init
