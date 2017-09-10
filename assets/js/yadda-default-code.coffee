@@ -292,14 +292,14 @@ showNux = (state, type, html, duration = null) ->
   notify node, duration
 
 # Make selected rows visible
-scrollIntoView = ->
+scrollIntoView = (selector) ->
   isVisible = (e) ->
     top = e.getBoundingClientRect().top
     bottom = e.getBoundingClientRect().bottom
     top >= 0 && bottom <= window.innerHeight
-  document.querySelectorAll('td.selected').forEach (e) ->
+  setTimeout((-> document.querySelectorAll(selector).forEach (e) ->
     if not isVisible(e)
-      e.scrollIntoView()
+      e.scrollIntoView()), 100)
 
 # Keyboard shortcuts
 _lastIndex = -1
@@ -320,11 +320,11 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
   focusNext = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.min([i + 1, revIds.length - 1])] || []
-      setTimeout scrollIntoView, 100
+      scrollIntoView('td.selected')
   focusPrev = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.max([i - 1, 0])] || []
-      setTimeout scrollIntoView, 100
+      scrollIntoView('td.selected')
 
   shortcutKey ['j'], 'Focus on revisions of the next series.', -> focusNext(getRevIds(false))
   shortcutKey ['k'], 'Focus on revisions of the previous series.', -> focusPrev(getRevIds(false))
