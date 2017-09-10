@@ -472,7 +472,7 @@ renderFilterList = (state) ->
           a className: 'phui-list-item-href', href: '#', onClick: ((e) -> handleFilterClick(e, title, name)),
             span className: 'phui-list-item-name', name
 
-renderActionSelector = (state) ->
+renderActionSelector = (state, className) ->
   active = state.activeFilter
   handleActionSelectorChange = (e) ->
     v = e.target.value
@@ -483,7 +483,7 @@ renderActionSelector = (state) ->
       triggerShortcutKey v[1..]
     e.target.blur()
   checked = _.keys(_.pickBy(state.checked))
-  select className: 'action-selector', onChange: handleActionSelectorChange, value: '+',
+  select className: "action-selector #{className}", onChange: handleActionSelectorChange, value: '+',
     option value: '+'
     if checked.length > 0
       optgroup label: "Action (#{checked.length} revision#{checked.length > 1 && 's' || ''})",
@@ -570,7 +570,8 @@ renderTable = (state, grevs, filteredRevs) ->
           showNux state, 'sort-created', 'Hint: Click at "Updated" the 3rd time to sort revisions by creation time'
           cycleSortKeys state, ['updated', 'created']), 'Updated'
         # checkbox
-        th style: {width: 28, padding: '8px 0px'}
+        th style: {width: 28, padding: '8px 0px'},
+          renderActionSelector state, 'embedded'
     if grevs.length == 0
       tbody null,
         tr null,
@@ -714,7 +715,6 @@ renderDialog = (state) ->
         div className: 'phabricator-nav-local phabricator-side-menu',
           renderFilterList state
         div className: 'phabricator-nav-content yadda-content',
-          renderActionSelector state
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
@@ -726,6 +726,7 @@ renderDialog = (state) ->
               "Last update: #{state.updatedAt.calendar()}."
             ' '
             a onClick: (-> showDialog state, 'settings'), 'Settings'
+      renderActionSelector state, 'mobile'
     renderDialog state
 
 stylesheet = """
@@ -766,13 +767,14 @@ stylesheet = """
 .yadda .config-desc { margin-left: 160px; margin-bottom: 8px;}
 .yadda .config-oneline-pair { display: flex; align-items: baseline; }
 .yadda .config-name { width: 146px; font-weight: bold; color: #6B748C; text-align: right; margin-right: 16px; }
+.yadda .action-selector.embedded { float: right; padding: 0; background-color: transparent; height: 100%; color: black; }
+.yadda .action-selector.mobile {  position: fixed; bottom: 0; width: 100%; border-top: 1px solid #C7CCD9; z-index: 10; }
 .got-it { margin-top: 8px; margin-right: 12px; display: block; float: right; }
-.device-desktop .action-selector, .device-tablet .action-selector { float: right; padding: 0 16px; background-color: transparent; }
-.device-desktop .action-selector { margin: 0 0 -34px; height: 34px; }
-.device-desktop .action-selector optgroup.filter { display: none; }
+.device-desktop .action-selector.mobile { display: none; }
+.device-tablet .action-selector.mobile { display: none; }
+.device-phone .action-selector.embed { display: none; }
 .device-desktop .yadda-content { margin: 16px; }
 .device-desktop th.actions { width: 30%; }
-.device-tablet .action-selector { margin: 0 0 -30px; height: 30px; }
 .device-tablet th.actions { width: 35%; }
 .device-tablet th.size, .device-tablet td.size { display: none; }
 .device-tablet .yadda table, .device-phone .yadda table { border-left: none; border-right: none; }
@@ -783,6 +785,8 @@ stylesheet = """
 .device-phone td.phab-status { display: none; }
 .device-phone td.actions { float: right; }
 .device-phone td.checkbox { display: none; }
-.device-phone .action-selector { position: fixed; bottom: 0; width: 100%; border-top: 1px solid #C7CCD9; z-index: 10; }
 .device-phone .table-bottom-info { margin-bottom: 30px; }
+.device-phone .yadda .config-oneline-pair { flex-wrap: wrap; }
+.device-phone .yadda .config-desc { margin-left: 0; }
+.device-phone .yadda .config-name { width: 100%; text-align: left; }
 """
