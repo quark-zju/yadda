@@ -601,11 +601,41 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
   checked = state.checked
   columnCount = 7 # used by "colSpan" - count "th" below
 
-  handleCheckedChange = (id, e) ->
+  getSeriesRevIds = (id) ->
+      ids = _.find(grevs, (revs) -> _.includes(revs.map((r) -> r.id), id)).map((r) -> r.id)
+
+  handleCheckedClick = (id, e) ->
+    if e.ctrlKey
+      ids = getSeriesRevIds(id)
+      markNux state, 'tick-series'
+    else
+      ids = [id]
+      showNux state, 'tick-series', 'Hint: Hold "Ctrl" and click to toggle all checkboxes in a series'
     checked = state.checked
-    checked[id] = !checked[id]
+    ids.forEach (id) -> checked[id] = !checked[id]
     state.checked = checked
     e.target.blur()
+
+  handleRowClick = (id, e, double = false) ->
+    if double
+      ids = getSeriesRevIds(id)
+      markNux state, 'row-click'
+    else
+      ids = [id]
+    if e.ctrlKey
+      # invert
+      selected = _.keyBy(state.currRevs, (id) -> id)
+      ids.forEach (id) ->
+        if selected[id]
+          delete selected[id]
+        else
+          selected[id] = true
+      state.currRevs = _.keys(selected)
+      markNux state, 'row-click'
+    else
+      # select
+      state.currRevs = ids
+      showNux state, 'row-click', 'Hint: Hold "Ctrl" and click to focus multiple revisions. Double click to focus a series.'
 
   handleLinkClick = (e) ->
     if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
@@ -662,14 +692,14 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
           if currRevs[r.id]
             if !filteredRevIds[r.id]
               showNux state, 'grey-rev', 'Hint: Some revisions are greyed out because they are filtered out, but another revision in a same patch series is not. Press <kbd>f</kbd> to remove them from focus. Press <kbd>s</kbd> to toggle display of those revisions.'
-          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{filteredRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
+          tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{filteredRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: ((e) -> handleRowClick(r.id, e)), onDoubleClick: ((e) -> handleRowClick(r.id, e, true)),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'} selector-indicator"
             td className: 'author',
               if r.author != lastAuthor
                 lastAuthor = r.author
                 renderProfile(state, r.author)
             td className: 'title', title: r.summary,
-              strong onClick: handleCheckedChange.bind(this, r.id), title: describeStatus(r), "D#{r.id} "
+              strong onClick: handleCheckedClick.bind(this, r.id), title: describeStatus(r), "D#{r.id} "
               a href: "/D#{r.id}", onClick: handleLinkClick,
                 strong null, r.title
             if state.activeSortKey == 'phabricator status'
@@ -687,8 +717,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
                 else
                   time.format('MMM D')
             td className: 'checkbox',
-              input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
-                handleCheckedChange(r.id, e)
+              input type: 'checkbox', checked: (checked[r.id] || false), onClick: ((e) -> handleCheckedClick(r.id, e))
 
 renderLoadingIndicator = (state) ->
   if state.error
