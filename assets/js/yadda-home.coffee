@@ -302,7 +302,7 @@ _init = ->
     _editorWin._parent = window
     doc = _editorWin.document
     doc.head.innerHTML = '''
-    <title>Yadda Live Editor</title>
+    <title>Yadda Interface Editor</title>
     <style>html, body, div { padding: 0; margin: 0; overflow: hidden; }
       .editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }</style>
     '''
