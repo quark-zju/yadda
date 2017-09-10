@@ -652,7 +652,7 @@ renderCodeSourceSelector = (state) ->
   handleCodeReset = ->
     if confirm('This will discard your customization to Yadda rendering code, from *both* local and remote. Do you really want to do so?')
       state.code = state.remote.code = ''
-      state.remote.updatedAt = moment.now()
+      state.remote.scheduleSync()
 
   renderConfigItem 'Interface Script', 'Advanced customization (ex. add a filter checking specific reviewers saying specific words) can be achieved by editing the script rendering Yadda UI.',
     span className: 'config-value',
