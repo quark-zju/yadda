@@ -318,7 +318,7 @@ openRevisions = (state, revIds) ->
 # Keyboard shortcuts
 _lastIndex = -1
 _muteDate = Number.MAX_SAFE_INTEGER
-installKeyboardShortcuts = (state, grevs, topoSort) ->
+installKeyboardShortcuts = (state, grevs, revs, topoSort) ->
   toId = (r) -> r.id
   getRevIds = (singleSelection) ->
     if singleSelection
@@ -362,6 +362,10 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
 
   shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
   shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
+
+  shortcutKey ['f'], 'Remove filtered out revisions from focus', ->
+    revIds = _.keyBy(revs, (r) -> r.id)
+    state.currRevs = state.currRevs.filter((r) -> revIds[r])
 
   shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
     r = _.min(state.currRevs)
@@ -773,7 +777,7 @@ renderDialog = (state) ->
   window.getStatus = getStatus
   revs = filterRevs(state, getStatus)
   grevs = groupRevs(state, revs, getSeriesId, topoSort)
-  installKeyboardShortcuts state, grevs, topoSort
+  installKeyboardShortcuts state, grevs, revs, topoSort
 
   div className: 'yadda',
     style null, stylesheet
