@@ -214,8 +214,9 @@ groupRevs = (state, revs, getSeriesId, topoSort) -> # [rev] -> [[rev]]
   gsorted.map (d) -> _.reverse(topoSort(showRevsByDep[d]))
 
 # Mark as read - record dateModified
-markAsRead = (state, markDate = null) ->
-  revIds = _.keys(_.pickBy(state.checked))
+markAsRead = (state, markDate = null, revIds = null) ->
+  if revIds == null
+    revIds = _.keys(_.pickBy(state.checked))
   marked = state.readMap
   revMap = _.keyBy(state.revisions, (r) -> r.id)
   # remove closed revisions
@@ -277,6 +278,8 @@ normalizeState = (state) ->
         e.prevent()
   if _.isUndefined(state.configFullSeries)
     storeRemotely 'configFullSeries', true
+  if _.isUndefined(state.configArchiveOnOpen)
+    storeRemotely 'configArchiveOnOpen', false
   if !_.isUndefined(state.remote.code) && state.configCodeSource == CODE_SOURCE_BUILTIN
     showNux state, 'code-switch', 'Hint: If you are looking for your own customized script about Yadda UI, go to "Settings", change "Interface Script" option, and then click "Edit".'
 
@@ -306,6 +309,12 @@ scrollIntoView = (selector) ->
   setTimeout((-> document.querySelectorAll(selector).forEach (e) ->
     if not isVisible(e)
       e.scrollIntoView()), 100)
+
+# Open revisions in new tabs. Handles markAsRead.
+openRevisions = (state, revIds) ->
+  if state.configArchiveOnOpen
+    markAsRead state, null, revIds
+  revIds.forEach (r) -> window.open("/D#{r}", '_blank')
 
 # Keyboard shortcuts
 _lastIndex = -1
@@ -358,9 +367,9 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
   shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
     r = _.min(state.currRevs)
     if r
-      window.open("/D#{r}", '_blank')
+      openRevisions state, [r]
   shortcutKey ['O'], 'Open all of focused revisions in new tabs.', ->
-    state.currRevs.forEach (r) -> window.open("/D#{r}", '_blank')
+    openRevisions state, state.currRevs
 
   shortcutKey ['a'], 'Archive selected revisions (mark as no new updates).', -> markAsRead state
   shortcutKey ['m'], 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
@@ -494,12 +503,12 @@ renderProfile = (state, username, opts = {}) ->
   profile = state.profileMap[username]
   a _.extend({className: "profile", title: profile.realName, href: "/p/#{username}", style: {backgroundImage: "url(#{profile.image})"}}, opts)
 
-renderActivities = (state, rev, actions, extraClassName = '') ->
+renderActivities = (state, rev, actions, extraClassName, handleLinkClick) ->
   author = className = title = actionId = ''
   elements = []
   append = ->
     if author
-      elements.push renderProfile state, author, href: "/D#{rev.id}##{actionId}", title: title, className: "#{extraClassName} #{className} profile action", key: actionId
+      elements.push renderProfile state, author, href: "/D#{rev.id}##{actionId}", onClick: handleLinkClick, title: title, className: "#{extraClassName} #{className} profile action", key: actionId
     author = className = title = actionId = ''
   isSeriesAction = getIsSeriesAction(actions)
   _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach (x) ->
@@ -534,6 +543,11 @@ renderTable = (state, grevs, filteredRevs) ->
     checked[id] = !checked[id]
     state.checked = checked
     e.target.blur()
+
+  handleLinkClick = (e) ->
+    if state.configArchiveOnOpen
+      revId = /\/D([0-9]*)/.exec(e.currentTarget.href)[1]
+      markAsRead state, null, [revId]
 
   table className: 'aphront-table-view',
     thead null,
@@ -586,13 +600,13 @@ renderTable = (state, grevs, filteredRevs) ->
                 renderProfile(state, r.author)
             td className: 'title', title: r.summary,
               strong onClick: handleCheckedChange.bind(this, r.id), "D#{r.id} "
-              a href: "/D#{r.id}",
+              a href: "/D#{r.id}", onClick: handleLinkClick,
                 strong null, r.title
             if state.activeSortKey == 'phabricator status'
               td className: "phab-status #{r.status.toLowerCase().replace(/ /g, '-')}", r.status
             td className: 'actions',
-              renderActivities state, r, readActions, "read #{unreadActions.length > 0 && 'shrink' || ''}"
-              renderActivities state, r, unreadActions, 'unread'
+              renderActivities state, r, readActions, "read #{unreadActions.length > 0 && 'shrink' || ''}", handleLinkClick
+              renderActivities state, r, unreadActions, 'unread', handleLinkClick
             td className: 'size',
               span className: 'size', "#{lines} line#{lines > 1 && 's' || ''}"
             (if state.activeSortKey == 'created' then [ctime, mtime] else [mtime]).map (time, i) ->
@@ -627,14 +641,12 @@ renderConfigItem = (name, description, children...) ->
 renderBooleanConfig = (state, name, variable, description, yesName = 'Yes', noName = 'No') ->
   val = state[variable]
   handleChange = (e) ->
-    isYes = (e.target.value == yesName)
-    if variable.indexOf('configNo') >= 0
-      isYes = !isYes
+    isYes = (e.target.value == 'Y')
     state[variable] = isYes
     e.target.blur()
-  renderConfigItem name, description, select className: 'config-value config-boolean', onChange: ((e) -> handleChange(e)), value: val && yesName || noName,
-    option value: yesName, yesName
-    option value: noName, noName
+  renderConfigItem name, description, select className: 'config-value config-boolean', onChange: ((e) -> handleChange(e)), value: val && 'Y' || 'N',
+    option value: 'Y', yesName
+    option value: 'N', noName
 
 renderCodeSourceSelector = (state) ->
   handleCodeReset = ->
@@ -647,7 +659,8 @@ renderCodeSourceSelector = (state) ->
       select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur(); markNux state, 'code-switch'), value: state.configCodeSource,
         option value: CODE_SOURCE_BUILTIN, 'Not Customized (Default)'
         option value: CODE_SOURCE_LOCAL, 'Customized (Store locally)'
-        option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
+        if state.user
+          option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
     span className: 'config-value', style: {marginLeft: 16},
       a onClick: (-> triggerShortcutKey('~')), 'Edit'
     span className: 'config-value', style: {marginLeft: 16},
@@ -656,7 +669,8 @@ renderCodeSourceSelector = (state) ->
 renderSettings = (state) ->
   div style: {margin: 16},
     div className: 'config-list',
-      renderBooleanConfig state, 'Series Display', 'configFullSeries', 'One patch series could have only part of its revisions meeting filter criteria. Choose visibility of revisions being filtered out.', 'Show Entire Series (Default)', 'Show Individual Revisions'
+      renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. Choose whether D1 should be visible in this case.', 'Show Entire Series (Default)', 'Show Only Individual Revisions'
+      renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'If you can always complete reading opened revisions. Enable this to free yourself from pressing "a".', 'Enable Archive on Open', 'Disable Archive on Open (Default)'
       renderCodeSourceSelector state
 
 renderDialog = (state) ->
