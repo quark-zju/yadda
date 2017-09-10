@@ -94,20 +94,22 @@ copy = (text) ->
 # utility: key for easy keyboard shortcut registering
 _registeredKeys = {}
 shortcutKey = (keys, desc, handler) ->
+  if _.isString(keys)
+    keys = [keys]
   name = JSON.stringify(keys)
   if _registeredKeys[name]
     k = _registeredKeys[name]
   else
     k = (new JX.KeyboardShortcut(keys, desc)).setHandler(handler)
     _registeredKeys[name] = k
+    for keyName in keys
+      _registeredKeys[keyName] = k
     k.register()
   k.setDescription(desc)
   k.setHandler(handler)
 
 triggerShortcutKey = (key) ->
-  for name, entry of _registeredKeys
-    if _.includes(JSON.parse(name), key)
-      entry.getHandler()()
+  _registeredKeys[key]?.getHandler()()
 
 # utility: JX.Notification
 notify = (content, duration = 3000) ->
