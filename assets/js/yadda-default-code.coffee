@@ -795,6 +795,7 @@ renderCodeSourceSelector = (state) ->
 
 renderConfigReset = (state) ->
   handleReset = ->
+    if confirm('This will restore many config options to default values. Do you want to continue?')
       # reset local state
       state.activeFilter = {}
       # reset remote state
@@ -805,7 +806,7 @@ renderConfigReset = (state) ->
       for k in toRemove
         delete state.remote[k]
       state.remote.scheduleSync()
-  renderConfigItem 'Reset', 'Restore config options to default values and make hints appear again.',
+  renderConfigItem 'Reset', 'Restore config options to default values and make hints appear again. Stored customized scripts won\'t be discarded.',
     span className: 'config-value',
       button className: 'button-red small', onClick: handleReset, 'Reset'
 
