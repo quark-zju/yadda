@@ -11,6 +11,7 @@ phutil_register_library_map(array(
   'class' => array(
     'CelerityYaddaResources' => 'res/CelerityYaddaResources.php',
     'YaddaApplication' => 'app/YaddaApplication.php',
+    'YaddaConfigOptions' => 'app/YaddaConfigOptions.php',
     'YaddaHomeController' => 'app/YaddaHomeController.php',
     'YaddaQueryConduitAPIMethod' => 'api/YaddaQueryConduitAPIMethod.php',
     'YaddaSQLPatchList' => 'db/YaddaSQLPatchList.php',
@@ -21,6 +22,7 @@ phutil_register_library_map(array(
   'xmap' => array(
     'CelerityYaddaResources' => 'CelerityResourcesOnDisk',
     'YaddaApplication' => 'PhabricatorApplication',
+    'YaddaConfigOptions' => 'PhabricatorApplicationConfigOptions',
     'YaddaHomeController' => 'PhabricatorController',
     'YaddaQueryConduitAPIMethod' => 'ConduitAPIMethod',
     'YaddaSQLPatchList' => 'PhabricatorSQLPatchList',
