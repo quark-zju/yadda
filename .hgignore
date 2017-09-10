@@ -1,3 +1,4 @@
 syntax: glob
 
 .phutil_module_cache
+yadda-app.dev.js
