@@ -176,12 +176,12 @@ _init = ->
       furtherRestore = null
       if src == CODE_SOURCE_LOCAL
         furtherRestore = ->
-          if confirm('Restored to built-in UI. Do you also want to discard UI customization stored in localStorage?')
+          if confirm('Restored to built-in UI. Do you also want to discard customized script stored in localStorage?')
             state.code = ''
             state.configCodeSource = CODE_SOURCE_LOCAL
       else if src == CODE_SOURCE_REMOTE
         furtherRestore = ->
-          if confirm('Restored to built-in UI. Do you also want to discard UI customization stored in Phabricator server?')
+          if confirm('Restored to built-in UI. Do you also want to discard customized script stored in Phabricator server?')
             state.remote.code = ''
             state.configCodeSource = CODE_SOURCE_REMOTE
             state.remote.scheduleSync()
@@ -196,6 +196,12 @@ _init = ->
       if err
         errors.push err
 
+      resetInfo =
+        div className: 'phui-info-view phui-info-severity-notice grouped',
+          'You can switch to the default UI, and optionally discard customized script to resolve issues.'
+          div className: 'phui-info-view-actions',
+            button className: 'phui-button-default', onClick: @handleCodeReset, 'Restore UI'
+
       if errors.length == 0
         if scope.render
           try
@@ -203,12 +209,14 @@ _init = ->
           catch err
             errors.push err
         else
-          return div className: 'phui-info-view phui-info-severity-notice',
-            'render(state) needs to be defined. For example:'
-            pre style: {padding: 8, marginTop: 8, backgroundColor: '#EBECEE', overflow: 'auto'},
-              '@render = (state) ->\n'
-              '  state.revisions.map (r) ->\n'
-              '    a style: {display: "block"}, href: "/D#{r.id}", r.title'
+          return div null,
+            div className: 'phui-info-view phui-info-severity-notice',
+              'render(state) needs to be defined. For example:'
+              pre style: {padding: 8, marginTop: 8, backgroundColor: '#EBECEE', overflow: 'auto'},
+                '@render = (state) ->\n'
+                '  state.revisions.map (r) ->\n'
+                '    a style: {display: "block"}, href: "/D#{r.id}", r.title'
+            resetInfo
 
       div null,
         errors.map (e, i) ->
@@ -218,10 +226,7 @@ _init = ->
               pre style: {padding: 8, marginTop: 8, backgroundColor: '#EBECEE', overflow: 'auto'},
                 e.stack
         if errors.length > 0
-          div className: 'phui-info-view phui-info-severity-notice grouped',
-            'You can switch to the default UI, and optionally discard the code change to resolve errors.'
-            div className: 'phui-info-view-actions',
-              button className: 'phui-button-default', onClick: @handleCodeReset, 'Restore UI'
+          resetInfo
         content
         # bottom-left triangle
         if code && code != yaddaDefaultCode
