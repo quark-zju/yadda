@@ -273,6 +273,8 @@ normalizeState = (state) ->
         e.prevent()
   if _.isUndefined(state.configFullSeries)
     storeRemotely 'configFullSeries', true
+  if !_.isUndefined(state.remote.code) && state.configCodeSource == CODE_SOURCE_BUILTIN
+    showNux state, 'code-switch', 'Hint: If you are looking for your own customized script about Yadda UI, go to "Settings", change "Interface Script" option, and then click "Edit".'
 
 # Show NUX notification
 _shownNux = {}
@@ -638,7 +640,7 @@ renderCodeSourceSelector = (state) ->
 
   renderConfigItem 'Interface Script', 'Advanced customization (ex. add a filter checking specific reviewers saying specific words) can be achieved by editing the script rendering Yadda UI.',
     span className: 'config-value',
-      select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur()), value: state.configCodeSource,
+      select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur(); markNux state, 'code-switch'), value: state.configCodeSource,
         option value: CODE_SOURCE_BUILTIN, 'Not Customized (Default)'
         option value: CODE_SOURCE_LOCAL, 'Customized (Store locally)'
         option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
