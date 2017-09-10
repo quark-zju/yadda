@@ -482,6 +482,7 @@ renderActionSelector = (state, className) ->
       [title, name] = JSON.parse(v[1..])
       changeFilter state, title, name
     else if v[0] == 'K'
+      showNux state, 'key-help', 'Hint: Press <kbd>?</kbd> to view keyboard shortcuts. Some features are only accessible from keyboard.'
       triggerShortcutKey v[1..]
     e.target.blur()
   checked = _.keys(_.pickBy(state.checked))
@@ -686,7 +687,6 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
                   time.format('MMM D')
             td className: 'checkbox',
               input type: 'checkbox', checked: (checked[r.id] || false), onChange: (e) ->
-                showNux state, 'key-help', 'Hint: Press <kbd>?</kbd> to view keyboard shortcuts. Some features are only accessible from keyboard.'
                 handleCheckedChange(r.id, e)
 
 renderLoadingIndicator = (state) ->
