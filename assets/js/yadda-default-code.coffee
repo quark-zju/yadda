@@ -257,6 +257,8 @@ normalizeState = (state) ->
     storeRemotely = storeLocally
   if not state.activeFilter
     storeLocally 'activeFilter', {}
+  if _.isUndefined(state.presets)
+    storeRemotely 'presets', {}
   if not state.activeSortKey
     storeLocally 'activeSortKey', sortKeyFunctions[0][0]
   if not state.activeSortDirection
@@ -385,6 +387,11 @@ installKeyboardShortcuts = (state, grevs, revs, topoSort) ->
   # Refresh only works for logged-in user. Since otherwise there is no valid CSRF token for Conduit API.
   if state.user
     shortcutKey ['r'], 'Fetch updates from server immediately.', refresh
+
+  # Filter Presets
+  [1..6].forEach (ch) ->
+    shortcutKey ["#{ch}"], "Load filter preset #{ch}", ->
+      state.activeFilter = state.presets["#{ch}"] || {}
 
 # Transaction to human readable text
 describeAction = (action) ->
@@ -746,6 +753,35 @@ renderBooleanConfig = (state, name, variable, description, yesName = 'Yes', noNa
     option value: 'Y', yesName
     option value: 'N', noName
 
+renderFilterPresets = (state) ->
+  active = state.activeFilter
+  presets = state.presets
+  handlePresentSave = (i, e) ->
+    presets = state.presets
+    if e.ctrlKey
+      delete presets["#{i}"]
+    else
+      presets["#{i}"] = _.clone(state.activeFilter)
+    state.presets = presets
+  renderConfigItem 'Filter Presets', 'Once filters are saved to presets, they can be quickly activated by pressing corresponding number keys.',
+    span className: 'config-value phui-button-bar',
+      [1..6].map (i) ->
+        preset = presets["#{i}"]
+        if _.isEqual(active, preset)
+          className = 'button-green'
+        else if preset
+          className = ''
+        else
+          className = 'button-grey'
+        if i == 1
+          className += ' phui-button-bar-first'
+        else if i == 6
+          className += ' phui-button-bar-last'
+        else
+          className += ' phui-button-bar-middle'
+        title = _.join(_.flatten(_.values(preset)), "\n")
+        button {className, title, onClick: (e) -> handlePresentSave(i, e)}, i
+
 renderCodeSourceSelector = (state) ->
   renderConfigItem 'Interface Script', 'Advanced customization (ex. add a shortcut key to enable a custom filter checking keywords in comments) can be achieved by editing the script rendering Yadda UI.',
     span className: 'config-value',
@@ -762,7 +798,7 @@ renderConfigReset = (state) ->
       # reset local state
       state.activeFilter = {}
       # reset remote state
-      toRemove = ['readNux']
+      toRemove = ['readNux', 'presets']
       for k, v of state.remote
         if _.startsWith(k, 'config')
           toRemove.push(k)
@@ -778,6 +814,7 @@ renderSettings = (state) ->
     div className: 'config-list',
       renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. This controls whether D1 is visible or not.', 'Show Entire Series', 'Show Only Individual Revisions'
       renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'Archive revisions being opened. Useful if you want to see a patch only once.', 'Enable Archive on Open', 'Disable Archive on Open'
+      renderFilterPresets state
       renderCodeSourceSelector state
       renderConfigReset state
 
@@ -787,7 +824,7 @@ renderDialog = (state) ->
     return
   [
     div className: 'jx-mask', key: '1'
-    div className: 'jx-client-dialog', style: {left: 0, top: 100}, key: '2',
+    div className: 'jx-client-dialog', style: {left: 0, top: 76}, key: '2',
       div className: 'aphront-dialog-view aphront-dialog-view-standalone',
         div className: 'aphront-dialog-head',
           div className: 'phui-header-shell',
