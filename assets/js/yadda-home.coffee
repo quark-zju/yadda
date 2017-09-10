@@ -124,6 +124,15 @@ CODE_SOURCE_LOCAL = 'local'
 CODE_SOURCE_BUILTIN = 'builtin'
 
 _init = ->
+  # initial state from the server
+  initial = {}
+  try
+    initial = JSON.parse(document.querySelector('.yadda-initial').textContent)
+
+  # default code may be mangled
+  if initial.appendScript
+    yaddaDefaultCode += "\n\n# Extra code from Phabricator 'yadda.append-script' config\n#{initial.appendScript}"
+
   # whether to sync code remotely (use state.remote.code), or just locally (use
   # state.code), or use default code (use yaddaDefaultCode).
   state.defineSyncedProperty 'configCodeSource', CODE_SOURCE_BUILTIN, true
@@ -265,9 +274,8 @@ _init = ->
         _applyNewRemote remote
       redraw()
 
-    stateElement = document.querySelector('.yadda-non-logged-in-state')
-    if stateElement
-      _processResult JSON.parse(stateElement.textContent)
+    if initial.state
+      _processResult initial.state
     else
       _request '/api/yadda.query', null, (r) ->
         if r.result
@@ -295,13 +303,16 @@ _init = ->
   _handleWindowMessage = (e) ->
     if e.data.type == 'code-change'
       src = state.configCodeSource
+      code = e.data.value
       if src == CODE_SOURCE_BUILTIN
+        if code == yaddaDefaultCode
+          return
         # CODE_SOURCE_BUILTIN is immutable. Change to "remote" automatically.
         state.configCodeSource = src = CODE_SOURCE_REMOTE
       if src == CODE_SOURCE_LOCAL
-        state.code = e.data.value
+        state.code = code
       else if src == CODE_SOURCE_REMOTE
-        state.remote.code = e.data.value
+        state.remote.code = code
         state.remote.scheduleSync()
         redraw()
   window.addEventListener 'message', _handleWindowMessage, false

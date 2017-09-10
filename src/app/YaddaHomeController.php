@@ -19,16 +19,26 @@ final class YaddaHomeController extends PhabricatorController {
     $page = $this->newPage()->setTitle($title);
     $root = phutil_tag_div('yadda-root');
     $page->appendChild($root);
+    $append_script = PhabricatorEnv::getEnvConfig('yadda.append-script');
+    $initial = array();
+    if ($append_script) {
+      // Try JSON decoding if it looks like encoded JSON list
+      if (strncmp($append_script, "\"", 1) === 0) {
+        $append_script = phutil_json_decode('['.$append_script.']')[0];
+      }
+      $initial['appendScript'] = $append_script;
+    }
     if ($viewer->getUserName() === null) {
       // If not logged in, Conduit API cannot be used. Provide a static initial
       // state in this case.
       $state = YaddaQueryConduitAPIMethod::query($viewer, array());
-      $state_div = phutil_tag('div', array(
-        'class' => 'yadda-non-logged-in-state',
-        'style' => 'display: none',
-      ), phutil_json_encode($state));
-      $page->appendChild($state_div);
+      $initial['state'] = $state;
     }
+    $initial_div = phutil_tag('pre', array(
+      'class' => 'yadda-initial',
+      'style' => 'display: none',
+    ), phutil_json_encode($initial));
+    $page->appendChild($initial_div);
     return $page;
   }
 }
