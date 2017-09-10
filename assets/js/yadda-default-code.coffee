@@ -338,6 +338,17 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
     (state.currRevs || []).forEach (r) -> checked[r] = value
     state.checked = checked
 
+  copyIds = (ids) ->
+    text = _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
+    if not text
+      return
+    copy(text)
+    notify("Copied: #{text}")
+    showNux(state, 'import-closed', 'Hint: use <tt>hg phabread \'$CLIPBOARD - closed\'</tt> to skip reading closed revisions.')
+
+  shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
+  shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
+
   shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
     r = _.min(state.currRevs)
     if r
@@ -349,20 +360,9 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
   shortcutKey ['m'], 'Mute selected revisions (mark as no updates forever).', -> markAsRead state, _muteDate
   shortcutKey ['U'], 'Mark selected revisions as unread (if last activity is not by you).', -> markAsRead state, 0
 
-  shortcutKey ['s'], 'Toggle always show full series.', ->
+  shortcutKey ['s'], 'Toggle full series display.', ->
     markNux state, 'grey-rev'
     state.configFullSeries = !state.configFullSeries
-
-  copyIds = (ids) ->
-    text = _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
-    if not text
-      return
-    copy(text)
-    notify("Copied: #{text}")
-    showNux(state, 'import-closed', 'Hint: use <tt>hg phabread \'$CLIPBOARD - closed\'</tt> to skip reading closed revisions.')
-
-  shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
-  shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
 
   # Refresh only works for logged-in user. Since otherwise there is no valid CSRF token for Conduit API.
   if state.user
