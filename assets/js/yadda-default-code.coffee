@@ -607,7 +607,7 @@ renderTable = (state, grevs, filteredRevs) ->
     e.target.blur()
 
   handleLinkClick = (e) ->
-    if state.configArchiveOnOpen
+    if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
       revId = /\/D([0-9]*)/.exec(e.currentTarget.href)[1]
       markAsRead state, null, [revId]
 
