@@ -331,7 +331,7 @@ installKeyboardShortcuts = (state, grevs, revs, topoSort) ->
     currRevs = state.currRevs || []
     index = _.findIndex(revIds, (rs) -> _.intersection(rs, currRevs).length > 0)
     if index == -1
-      index = _lastIndex # best-effort guess when things got deleted
+      index = _.min([revIds.length - 1, _lastIndex]) # best-effort guess when things got deleted
     _lastIndex = index
   focusNext = (revIds) ->
       i = getIndex(revIds)
