@@ -11,7 +11,15 @@ redraw = -> return
 
 state =
   # state that will be synchronized to remote periodically
-  remote: {updatedAt: 0}
+  # - state.remote: in-memory volatile state; source of truth
+  # - localStorage._pendingRemote: pending sync state; persistent across refreshes
+  # - server side "state": could be older, or newer than the above
+  remote:
+    updatedAt: 0
+    scheduleSync: ->
+      state.remote.updatedAt = moment.now()
+      # store it locally so it's effective even if we navigate away
+      localStorage._pendingRemote = JSON.stringify(state.remote)
 
   # define a property that syncs with localStorage, optionally sync with remote
   defineSyncedProperty: (name, fallback=null, remote=false) ->
@@ -48,9 +56,17 @@ state =
           else
             localStorage[name] = d
         if remote
-          state.remote.updatedAt = moment.now()
+          state.remote.scheduleSync()
 
         redraw()
+
+# populate state.remote from localStorage as initial state
+_applyNewRemote = (newRemote) ->
+  for k, v of newRemote
+    if k != 'scheduleSync'
+      state.remote[k] = v
+try
+  _applyNewRemote(JSON.parse(localStorage._pendingRemote))
 
 # utility: copy
 copy = (text) ->
@@ -165,8 +181,8 @@ _init = ->
         furtherRestore = ->
           if confirm('Restored to built-in UI. Do you also want to discard UI customization stored in Phabricator server?')
             state.remote.code = ''
-            state.remote.updatedAt = moment.now()
             state.configCodeSource = CODE_SOURCE_REMOTE
+            state.remote.scheduleSync()
       if furtherRestore
         setTimeout furtherRestore, 500
 
@@ -233,7 +249,7 @@ _init = ->
         remote = JSON.parse(result.state)
       if remote && remote.updatedAt > state.remote.updatedAt
         _lastRemoteSync = remote.updatedAt
-        state.remote = remote
+        _applyNewRemote remote
       redraw()
 
     stateElement = document.querySelector('.yadda-non-logged-in-state')
@@ -273,7 +289,7 @@ _init = ->
         state.code = e.data.value
       else if src == CODE_SOURCE_REMOTE
         state.remote.code = e.data.value
-        state.remote.updatedAt = moment.now()
+        state.remote.scheduleSync()
         redraw()
   window.addEventListener 'message', _handleWindowMessage, false
 
