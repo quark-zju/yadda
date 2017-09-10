@@ -845,7 +845,7 @@ stylesheet = """
 .yadda td.selected, .yadda td.not-selected { padding: 0px 2px; }
 .yadda td.selected { background: #3498db; }
 .yadda td.size { text-align: right; }
-.yadda tbody { border-bottom: 1px solid #dde8ef }
+.yadda tbody { border-bottom: 1px solid #D0E0ED; }
 .yadda tbody:last-child { border-bottom: transparent; }
 .yadda .profile { width: 20px; height: 20px; display: inline-block; vertical-align: middle; background-size: cover; background-position: center top; background-repeat: no-repeat; background-clip: content-box; border-radius: 2px; }
 .yadda .profile.action { margin: 1px; float: left; }
@@ -859,11 +859,11 @@ stylesheet = """
 .yadda .profile.update { border-bottom-color: #3498DB; }
 .yadda .profile.request-review { border-bottom: 4px solid #6e5cb6; }
 .yadda td.title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.yadda tr.read { background: #f0f6fa; }
+/* .yadda tr.read { background: #f0f6fa; } */
+/* .yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.6; } */
 .yadda tr.read.muted { background: #f8e9e8; }
-.yadda tr.read td.title, .yadda tr.read td.time, .yadda tr.read td.size { opacity: 0.5; }
-.yadda tr.passive-appear { background-color: #F7F7F7; }
-.yadda tr.passive-appear td.title, .yadda tr.passive-appear td.time, .yadda tr.passive-appear td.size { opacity: 0.5; }
+.yadda tr.passive-appear, .yadda tr.passive-appear:hover { background-color: #EFF1F7; }
+.yadda tr.passive-appear td.title, .yadda tr.passive-appear td.time, .yadda tr.passive-appear td.size { opacity: 0.6; }
 .yadda tr.selected, .yadda tr.selected:hover { background-color: #FDF3DA; }
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
 .yadda .phab-status.accepted { color: #139543 }
