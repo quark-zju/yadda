@@ -200,10 +200,10 @@ groupRevs = (state, revs, getSeriesId, topoSort) -> # [rev] -> [[rev]]
   # {seriesId: [rev]}
   sortRevsByDep = _.groupBy(revs, (r) -> getSeriesId(r.id))
   # config: do we always include entire series even if only few revs are picked
-  if state.config.noFullSeries # do not include full series
-    showRevsByDep = sortRevsByDep
-  else # include full series
+  if state.configFullSeries # include full series
     showRevsByDep = _.groupBy(allRevs, (r) -> getSeriesId(r.id))
+  else # do not include full series
+    showRevsByDep = sortRevsByDep
   # for series, use selected sort function
   entry = _.find(sortKeyFunctions, (q) -> q[0] == state.activeSortKey)
   groupSortKey = if entry then entry[1] else sortKeyFunctions[0][1]
@@ -249,24 +249,30 @@ getDateCodeUpdated = (rev) ->
 
 # One-time normalize "state". Fill fields used by this script.
 normalizeState = (state) ->
-  syncProperty = state.defineSyncedProperty
-  syncRemotely = state.sync # if set, sync some state remotely
+  storeLocally = state.defineSyncedProperty
+  storeRemotely = (name, fallback) -> state.defineSyncedProperty(name, fallback, true)
   if not state.activeFilter
-    syncProperty 'activeFilter', {}, syncRemotely
+    storeLocally 'activeFilter', {}
   if not state.activeSortKey
-    syncProperty 'activeSortKey', sortKeyFunctions[0][0], syncRemotely
+    storeLocally 'activeSortKey', sortKeyFunctions[0][0]
   if not state.activeSortDirection
-    syncProperty 'activeSortDirection', -1, syncRemotely
+    storeLocally 'activeSortDirection', -1
   if not state.currRevs
-    syncProperty 'currRevs', [] # do not sync remotely
+    storeLocally 'currRevs', []
   if not state.readMap
-    syncProperty 'readMap', {}, syncRemotely
+    storeRemotely 'readMap', {}
   if not state.checked
-    syncProperty 'checked', {} # do not sync remotely
-  if not state.config
-    syncProperty 'config', {}, syncRemotely
+    storeLocally 'checked', {}
   if not state.readNux
-    syncProperty 'readNux', {}, syncRemotely
+    storeRemotely 'readNux', {}
+  if _.isUndefined(state.dialog)
+    storeLocally 'dialog', null
+    JX.Stratcom.listen 'keydown', null, (e) ->
+      if e.getSpecialKey() == 'esc' && state.dialog != null
+        state.dialog = null
+        e.prevent()
+  if _.isUndefined(state.configFullSeries)
+    storeRemotely 'configFullSeries', true
 
 # Show NUX notification
 _shownNux = {}
@@ -345,7 +351,7 @@ installKeyboardShortcuts = (state, grevs, topoSort) ->
 
   shortcutKey ['s'], 'Toggle always show full series.', ->
     markNux state, 'grey-rev'
-    c = state.config; c.noFullSeries = not c.noFullSeries; state.config = c
+    state.configFullSeries = !state.configFullSeries
 
   copyIds = (ids) ->
     text = _.join(topoSort(ids).map((id) -> "D#{id}"), '+')
@@ -426,7 +432,7 @@ getSelectedFilters = (activeFilter, title, filters) ->
   result
 
 # React elements
-{a, button, div, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
+{a, button, div, hr, h1, input, li, optgroup, option, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
 renderFilterList = (state) ->
   active = state.activeFilter
@@ -437,7 +443,7 @@ renderFilterList = (state) ->
 
   getFilterGroups(state).map ([title, filters]) ->
     selected = getSelectedFilters(active, title, filters)
-    if not filters
+    if filters.length == 0
       return
     ul className: 'phui-list-view', key: title,
       li className: 'phui-list-item-view phui-list-item-type-label',
@@ -466,13 +472,12 @@ renderActionSelector = (state) ->
         option value: 'Km', 'Mute'
         option value: 'KU', 'Mark Unread'
     getFilterGroups(state).map ([title, filters], j) ->
-      if not filters
+      if filters.length == 0
         return
       selected = getSelectedFilters(active, title, filters)
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
           option key: i, disabled: selected[name], value: "F#{JSON.stringify([title, name])}", "#{name}#{selected[name] && ' (*)' || ''}"
-    option value: 'Ks', state.config.noFullSeries && 'Show Full Series' || 'Show Partial Series'
     option value: 'K~', 'Interface Editor'
 
 renderProfile = (state, username, opts = {}) ->
@@ -601,6 +606,66 @@ renderLoadingIndicator = (state) ->
       React.DOM.p null, 'Fetching data...'
       React.DOM.progress style: {height: 10, width: 100}
 
+renderConfigItem = (name, description, children...) ->
+  div className: 'config-item',
+    if description
+      div className: 'config-desc', description
+    div className: 'config-oneline-pair grouped',
+      div className: 'config-name', name
+      children...
+
+renderBooleanConfig = (state, name, variable, description, yesName = 'Yes', noName = 'No') ->
+  val = state[variable]
+  handleChange = (e) ->
+    isYes = (e.target.value == yesName)
+    if variable.indexOf('configNo') >= 0
+      isYes = !isYes
+    state[variable] = isYes
+    e.target.blur()
+  renderConfigItem name, description, select className: 'config-value config-boolean', onChange: ((e) -> handleChange(e)), value: val && yesName || noName,
+    option value: yesName, yesName
+    option value: noName, noName
+
+renderCodeSourceSelector = (state) ->
+  handleCodeReset = ->
+    if confirm('This will discard your customization to Yadda rendering code, from *both* local and remote. Do you really want to do so?')
+      state.code = state.remote.code = ''
+      state.remote.updatedAt = moment.now()
+
+  renderConfigItem 'Interface Script', 'Advanced customization (ex. add a filter checking specific reviewers saying specific words) can be achieved by editing the script rendering Yadda UI.',
+    span className: 'config-value',
+      select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur()), value: state.configCodeSource,
+        option value: CODE_SOURCE_BUILTIN, 'Not Customized (Default)'
+        option value: CODE_SOURCE_LOCAL, 'Customized (Store locally)'
+        option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
+    span className: 'config-value', style: {marginLeft: 16},
+      a onClick: (-> triggerShortcutKey('~')), 'Edit'
+    span className: 'config-value', style: {marginLeft: 16},
+      a onClick: handleCodeReset, 'Reset'
+
+renderSettings = (state) ->
+  div style: {margin: 16},
+    div className: 'config-list',
+      renderBooleanConfig state, 'Series Display', 'configFullSeries', 'One patch series could have only part of its revisions meeting filter criteria. Choose visibility of revisions being filtered out.', 'Show Entire Series (Default)', 'Show Individual Revisions'
+      renderCodeSourceSelector state
+
+renderDialog = (state) ->
+  name = state.dialog
+  if !name
+    return
+  [
+    div className: 'jx-mask', key: '1'
+    div className: 'jx-client-dialog', style: {left: 0, top: 100}, key: '2',
+      div className: 'aphront-dialog-view aphront-dialog-view-standalone',
+        div className: 'aphront-dialog-head',
+          div className: 'phui-header-shell',
+            h1 className: 'phui-header-header', _.capitalize(name)
+        if name == 'settings'
+          renderSettings state
+        div className: 'aphront-dialog-tail grouped',
+          button onClick: (-> state.dialog = null), 'Looks good'
+  ]
+
 @render = (state) ->
   # Make it easier for debugging using F12 developer tools
   window.state = state
@@ -612,6 +677,7 @@ renderLoadingIndicator = (state) ->
   allRevs = state.revisions
   [getSeriesId, topoSort] = getTopoSorter(allRevs)
   getStatus = getStatusCalculator(state, getSeriesId)
+  window.getStatus = getStatus
   revs = filterRevs(state, getStatus)
   grevs = groupRevs(state, revs, getSeriesId, topoSort)
   installKeyboardShortcuts state, grevs, topoSort
@@ -633,6 +699,9 @@ renderLoadingIndicator = (state) ->
               "Sorted by: #{state.activeSortKey}, #{if state.activeSortDirection == 1 then 'ascending' else 'descending'}. "
             if state.updatedAt
               "Last update: #{state.updatedAt.calendar()}."
+            ' '
+            a href: '#', onClick: (-> state.dialog = 'settings'), 'Settings'
+    renderDialog state
 
 stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
@@ -668,6 +737,10 @@ stylesheet = """
 .yadda .action-selector { border: 0; border-radius: 0; }
 .yadda .action-selector:focus { outline: none; }
 .yadda .yadda-content { margin-bottom: 16px }
+.yadda .config-item { margin-bottom: 20px; }
+.yadda .config-desc { margin-left: 160px; margin-bottom: 8px;}
+.yadda .config-oneline-pair { display: flex; align-items: baseline; }
+.yadda .config-name { width: 146px; font-weight: bold; color: #6B748C; text-align: right; margin-right: 16px; }
 .got-it { margin-top: 8px; margin-right: 12px; display: block; float: right; }
 .device-desktop .action-selector, .device-tablet .action-selector { float: right; padding: 0 16px; background-color: transparent; }
 .device-desktop .action-selector { margin: 0 0 -34px; height: 34px; }
@@ -688,4 +761,3 @@ stylesheet = """
 .device-phone .action-selector { position: fixed; bottom: 0; width: 100%; border-top: 1px solid #C7CCD9; z-index: 10; }
 .device-phone .table-bottom-info { margin-bottom: 30px; }
 """
-
