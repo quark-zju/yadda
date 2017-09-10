@@ -589,7 +589,7 @@ renderReviewNux = (state) ->
     div className: 'pm',
       help
     div className: 'pm',
-      button className: 'button-green small phui-button-simple', onClick: (-> markNux state, nux), 'Got it!'
+      button className: 'button-green', onClick: (-> markNux state, nux), 'Got it!'
 
 renderTable = (state, grevs, filteredRevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
@@ -654,7 +654,7 @@ renderTable = (state, grevs, filteredRevs) ->
           # NUX prompts about certain cases
           if currRevs[r.id]
             if !filteredRevIds[r.id]
-              showNux state, 'grey-rev', 'Hint: Some revisions are greyed out because they are filtered out, but another revision in a same patch series is not. Press <kbd>s</kbd> to toggle display of those patches.'
+              showNux state, 'grey-rev', 'Hint: Some revisions are greyed out because they are filtered out, but another revision in a same patch series is not. Press <kbd>f</kbd> to remove them from focus. Press <kbd>s</kbd> to toggle display of those revisions.'
           tr key: r.id, className: "#{(atime >= mtime) && 'read' || 'not-read'} #{filteredRevIds[r.id] && 'active-appear' || 'passive-appear'} #{atime == _muteDate && 'muted'} #{checked[r.id] && 'selected'}", onClick: (-> state.currRevs = [r.id]),
             td className: "#{currRevs[r.id] && 'selected' || 'not-selected'} selector-indicator"
             td className: 'author',
@@ -712,11 +712,11 @@ renderBooleanConfig = (state, name, variable, description, yesName = 'Yes', noNa
     option value: 'N', noName
 
 renderCodeSourceSelector = (state) ->
-  renderConfigItem 'Interface Script', 'Advanced customization (ex. add a filter checking specific reviewers saying specific words) can be achieved by editing the script rendering Yadda UI.',
+  renderConfigItem 'Interface Script', 'Advanced customization (ex. add a shortcut key to enable a custom filter checking keywords in comments) can be achieved by editing the script rendering Yadda UI.',
     span className: 'config-value',
       select onChange: ((e) -> state.configCodeSource = e.target.value; e.target.blur(); markNux state, 'code-switch'), value: state.configCodeSource,
         option value: CODE_SOURCE_BUILTIN, 'Not Customized (Use Built-in)'
-        option value: CODE_SOURCE_LOCAL, 'Customized (Store locally)'
+        option value: CODE_SOURCE_LOCAL, 'Customized (Sync with localStorage)'
         if state.user
           option value: CODE_SOURCE_REMOTE, 'Customized (Sync with Phabricator)'
     span className: 'config-value', style: {marginLeft: 16},
@@ -742,7 +742,7 @@ renderSettings = (state) ->
   div style: {margin: 16},
     div className: 'config-list',
       renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. This controls whether D1 is visible or not.', 'Show Entire Series', 'Show Only Individual Revisions'
-      renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'Archive revisions being opened. Useful if you only want to see a patch once.', 'Enable Archive on Open', 'Disable Archive on Open'
+      renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'Archive revisions being opened. Useful if you want to see a patch only once.', 'Enable Archive on Open', 'Disable Archive on Open'
       renderCodeSourceSelector state
       renderConfigReset state
 
