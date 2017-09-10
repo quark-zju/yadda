@@ -451,7 +451,7 @@ showDialog = (state, name) ->
   scrollIntoView('.jx-client-dialog')
 
 # React elements
-{a, button, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
+{a, br, button, code, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
 renderFilterList = (state) ->
   active = state.activeFilter
@@ -528,6 +528,60 @@ renderActivities = (state, rev, actions, extraClassName, handleLinkClick) ->
   className += ' last'
   append()
   elements
+
+renderReviewNux = (state) ->
+  # Currently the Review NUX is HG specific
+  if (state.activeFilter['Repositories'] || [])[0] != 'HG'
+    return
+
+  stage = (state.activeFilter['Review Stages'] || [])[0]
+  revId = 123 # example revId
+  try
+    revId = state.revisions[0].id
+  if stage == 'Needs 1st Pass'
+    nux = 'review-1p'
+    help = div null,
+      div className: 'mmb',
+        '1st Pass is to make a preliminary decision - yes or no. Revisions without any decisions are listed here. Everyone is welcome to review them.'
+      div className: 'mmb',
+        'Explicit accepts or rejects help the review process more than just commenting. '
+        'Code won\'t be pushed if they are only accepted in 1st Pass. So don\'t worry about immature decisions.'
+      div className: '',
+        'To express LGTM (or s/good/bad/) for an entire series instead of a single revision, accept (or reject) any revision in the series with '
+        '"this series" in comment, which will be treated by Yadda specially. Batch accepting or rejecting is possible via command line like '
+        code({}, "hg phabupdate --accept ':D#{revId}'")
+        '.'
+  else if stage == 'Needs 2nd Pass'
+    nux = 'review-2p'
+    help = div null,
+      div className: 'mmb',
+        '2nd Pass is mainly for reviewers with push access. Open revisions with at least one accept are listed here. '
+        'They are expected to be either pushed, or rejected (so they go to "Needs Revision" stage).'
+      div className: 'mmb',
+        'Press ', kbd({}, 'c'), ' to copy revision IDs to clipboard. They are topo-sorted and can be used by ', code({}, 'hg phabread $CLIPBOARD'), '. '
+        'When typing revisions manually, use', code({}, "hg phabread ':D#{revId}-closed'"), ' to get a series without closed (pushed) revisions.'
+      div className: '',
+        'To accept revisions in batch in a script, use something like', code({}, "hg phabupdate --accept ':D#{revId}' --comment 'Queued. Thanks!'"), '.'
+  else if stage == 'Needs Revision'
+    nux = 'review-revision'
+    help = div null,
+      div className: 'mmb',
+        'Open revisions which has at least one reject on the latest version are shown here. What can happen next are:'
+      ul style: {listStyle: 'inside disc', marginLeft: 8},
+        li null, 'Reject is reasonable. Update the code and it returns to 1st Pass stage.'
+        li null, 'Reject is unfair. Author could request review again. Or another reviewer can accept the change.'
+        li null, 'Stay inactive for long. They will be eventually closed.'
+
+  if !help || !nux || state.readNux[nux]
+    return
+
+  div className: 'phui-box phui-box-border phui-object-box mlb grouped',
+    div className: 'phui-header-shell',
+      h1 className: 'phui-header-view', stage
+    div className: 'pm',
+      help
+    div className: 'pm',
+      button className: 'button-green small phui-button-simple', onClick: (-> markNux state, nux), 'Got it!'
 
 renderTable = (state, grevs, filteredRevs) ->
   ago = moment().subtract(3, 'days') # display relative time within 3 days
@@ -718,6 +772,7 @@ renderDialog = (state) ->
           if state.error
             div className: 'phui-info-view phui-info-severity-error',
               state.error
+          renderReviewNux state
           renderTable state, grevs, revs
           span className: 'table-bottom-info',
             span onClick: (-> cycleSortKeys state, sortKeyFunctions.map((k) -> k[0])),
@@ -733,6 +788,7 @@ stylesheet = """
 .yadda .aphront-table-view td { padding: 3px 4px; }
 .yadda table { table-layout: fixed; }
 .yadda thead { cursor: default; }
+.yadda code, .yadda kbd { background: #EBECEE; padding: 0px 4px; margin: 0px 2px; border-radius: 3px; }
 .yadda td input { display: inline-block; vertical-align: middle; margin: 3px 5px; }
 .yadda td.selected, .yadda td.not-selected { padding: 0px 2px; }
 .yadda td.selected { background: #3498db; }
