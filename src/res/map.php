@@ -7,23 +7,12 @@
  */
 return array(
   'names' => array(
-    'css/yadda.css' => '9614511a',
-    'js/yadda-app.dev.js' => 'da1132c0',
-    'js/yadda-app.min.js' => '2da20bb4',
-    'vendor/coffeescript/coffeescript.js' => '8a9e999f',
-    'vendor/lodash/lodash.js' => '216cb86c',
-    'vendor/moment/moment.js' => '3ec21492',
-    'vendor/react/react-dom.min.js' => '499f306a',
-    'vendor/react/react.min.js' => '58873982',
+    'yadda-home.js' => 'f9dc6743',
+    'yadda.css' => 'c627d025',
   ),
   'symbols' => array(
-    'coffeescript' => '8a9e999f',
-    'lodash' => '216cb86c',
-    'moment' => '3ec21492',
-    'react' => '58873982',
-    'react-dom' => '499f306a',
-    'yadda-css' => '9614511a',
-    'yadda-home' => 'da1132c0',
+    'yadda-css' => 'c627d025',
+    'yadda-home-js' => 'f9dc6743',
   ),
   'requires' => array(),
   'packages' => array(),

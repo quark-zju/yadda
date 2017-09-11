@@ -7,7 +7,7 @@ final class CelerityYaddaResources extends CelerityResourcesOnDisk {
   }
 
   public function getPathToResources() {
-    return $this->joinPath('../assets');
+    return $this->joinPath('../rsrc/build');
   }
 
   public function getPathToMap() {
