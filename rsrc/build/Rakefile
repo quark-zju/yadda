@@ -1,7 +1,7 @@
 require 'rake/clean'
 
 RSRC_PATH = File.expand_path('../..', __FILE__)
-DEV = ENV['DEV']
+DEV = (ENV['DEV'].to_i != 0)
 YADDA_JS_DEST = 'yadda-home.js'
 YADDA_CSS_DEST = 'yadda.css'
 
@@ -11,55 +11,62 @@ task :default => [:celerity]
 
 YADDA_JS_DEFAULT_SCRIPT = "#{RSRC_PATH}/js/yadda-default-code.coffee"
 YADDA_JS_FRAMEWORK_SCRIPT = "#{RSRC_PATH}/js/yadda-home.coffee"
-YADDA_JS_3RD_SRC_MINIABLE = Dir["#{RSRC_PATH}/../vendor/{lodash,moment,coffeescript}/*.js"]
-YADDA_JS_3RD_SRC_NOT_MINIABLE = [
-  "#{RSRC_PATH}/../vendor/react/react.min.js",
-  "#{RSRC_PATH}/../vendor/react/react-dom.min.js",
-]
+YADDA_JS_3RD_SRC = if DEV
+                     [
+                       "#{RSRC_PATH}/../vendor/lodash/lodash.js",
+                       "#{RSRC_PATH}/../vendor/moment/moment.js",
+                       "#{RSRC_PATH}/../vendor/coffeescript/coffeescript.min.js",
+                       "#{RSRC_PATH}/../vendor/react/react.js",
+                       "#{RSRC_PATH}/../vendor/react/react-dom.js",
+                     ]
+                   else
+                     [
+                       "#{RSRC_PATH}/../vendor/lodash/lodash.min.js",
+                       "#{RSRC_PATH}/../vendor/moment/moment.min.js",
+                       "#{RSRC_PATH}/../vendor/coffeescript/coffeescript.min.js",
+                       "#{RSRC_PATH}/../vendor/react/react.min.js",
+                       "#{RSRC_PATH}/../vendor/react/react-dom.min.js",
+                     ]
+                   end
 
 file YADDA_JS_DEST => [
   YADDA_JS_DEFAULT_SCRIPT,
   YADDA_JS_FRAMEWORK_SCRIPT,
-  *YADDA_JS_3RD_SRC_MINIABLE,
-  *YADDA_JS_3RD_SRC_NOT_MINIABLE
+  *YADDA_JS_3RD_SRC,
 ] do |t|
   File.open('yadda-tmp.coffee', 'w') do |f|
+    f.puts "__DEV__=#{DEV ? 1 : 0}"
     f.puts "yaddaDefaultCode = '''"
     f.write File.read(YADDA_JS_DEFAULT_SCRIPT).gsub('\\', '\\\\\\\\')
     f.puts "'''"
     f.write File.read(YADDA_JS_FRAMEWORK_SCRIPT)
   end
-  
+
   exit 1 unless system'coffee -c yadda-tmp.coffee'
-  
+
   # Celerity fails to minify the resource. Let's do it manually
-  files = YADDA_JS_3RD_SRC_MINIABLE + ['yadda-tmp.js']
-  if ENV['DEV']
-    File.open(YADDA_JS_DEST, 'w') do |f|
-      files.each { |p| f.puts File.read(p) }
-    end
-  else
-    exit 2 unless system "uglifyjs --comments '/icense/' -d __DEV__=0 -o #{YADDA_JS_DEST} #{files * ' '}"
+  if !DEV
+    # babel-minify needs to concat files
+    exit 2 unless system "babel-minify --mangle=0 -o yadda-tmp.min.js yadda-tmp.js"
+    FileUtils.mv 'yadda-tmp.min.js', 'yadda-tmp.js'
   end
-  
+
   # Add "@do-not-minify" to bypass Celerity
-  content = File.read(YADDA_JS_DEST)
   header = <<'EOS'
 /**
  * @do-not-minify
  * @provides yadda-home-js
  */
 EOS
-  
+
   # uglifyjs does not handle react.js well, write it manually
   File.open(YADDA_JS_DEST, 'w') do |f|
     f.write(header)
-    YADDA_JS_3RD_SRC_NOT_MINIABLE.each do |path|
-      f.write(File.read(path))
+    [*YADDA_JS_3RD_SRC, 'yadda-tmp.js'].each do |path|
+      f.puts(File.read(path))
     end
-    f.write(content)
   end
-  
+
   FileUtils.rm_f ['yadda-tmp.coffee', 'yadda-tmp.js']
 end
 
@@ -69,6 +76,6 @@ file YADDA_CSS_DEST => [YADDA_CSS_SRC] do |t|
   FileUtils.cp YADDA_CSS_SRC, YADDA_CSS_DEST
 end
 
-task :celerity => [YADDA_CSS_DEST, YADDA_JS_DEST] do 
+task :celerity => [YADDA_CSS_DEST, YADDA_JS_DEST] do
   sh 'celerity map'
 end
