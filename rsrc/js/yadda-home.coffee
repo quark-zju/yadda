@@ -328,7 +328,7 @@ _init = ->
     doc.head.innerHTML = '''
     <title>Yadda Interface Editor</title>
     <style>html, body, div { padding: 0; margin: 0; overflow: hidden; }
-      .editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }</style>
+      .yadda-editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: 100%; height: 100%; }</style>
     '''
     # Execute javascript in that window by "_editorWin.eval" so closing this
     # window won't cause event listeners etc. to lose for that window.
@@ -343,18 +343,18 @@ _init = ->
       """
 
     useTextarea = ->
-      doc.body.innerHTML = '<textarea class="editor" spellcheck="false" wrap="soft" style="border: none; resize: none; white-space: pre;"></textarea>'
+      doc.body.innerHTML = '<textarea class="yadda-editor" spellcheck="false" wrap="soft" style="border: none; resize: none; white-space: pre;"></textarea>'
       runScript """
-        editor = document.querySelector('.editor')
+        editor = document.querySelector('.yadda-editor')
         editor.addEventListener 'input', (e) -> postCode e.target.value
-        window.setCode = (code) -> document.querySelector('.editor').value = code
+        window.setCode = (code) -> document.querySelector('.yadda-editor').value = code
         """
       _editorWin.setCode _getCode()
 
     useAce = ->
-      doc.body.innerHTML = '<div class="editor"></div>'
+      doc.body.innerHTML = '<div class="yadda-editor"></div>'
       runScript """
-        editor = ace.edit document.querySelector('.editor')
+        editor = ace.edit document.querySelector('.yadda-editor')
         editor.getSession().setOptions tabSize: 2, useSoftTabs: true
         editor.getSession().setMode 'ace/mode/coffee'
         editor.setSelectionStyle 'text'
