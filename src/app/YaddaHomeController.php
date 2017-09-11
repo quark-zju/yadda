@@ -11,7 +11,7 @@ final class YaddaHomeController extends PhabricatorController {
     require_celerity_resource('phui-button-bar-css');
     require_celerity_resource('phabricator-keyboard-shortcut');
     require_celerity_resource('phabricator-notification');
-    require_celerity_resource('yadda-home', 'yadda');
+    require_celerity_resource('yadda-home-js', 'yadda');
     require_celerity_resource('yadda-css', 'yadda');
 
     $viewer = $request->getUser();
