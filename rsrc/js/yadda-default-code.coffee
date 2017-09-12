@@ -487,7 +487,7 @@ renderActionSelector = (state, className) ->
     v = e.target.value
     if v[0] == 'F'
       [title, name] = JSON.parse(v[1..])
-      changeFilter state, title, name
+      changeFilter state, title, name, true
     else if v[0] == 'K'
       showNux state, 'key-help', 'Hint: Press <kbd>?</kbd> to view keyboard shortcuts. Some features are only accessible from keyboard.'
       triggerShortcutKey v[1..]
@@ -506,7 +506,7 @@ renderActionSelector = (state, className) ->
       selected = getSelectedFilters(active, title, filters)
       optgroup className: 'filter', label: title, key: j,
         filters.map ([name, func], i) ->
-          option key: i, disabled: selected[name], value: "F#{JSON.stringify([title, name])}", "#{name}#{selected[name] && ' (*)' || ''}"
+          option key: i, value: "F#{JSON.stringify([title, name])}", "#{name}#{selected[name] && ' (*)' || ''}"
     option value: 'K~', 'Interface Editor'
 
 renderProfile = (state, username, opts = {}) ->
