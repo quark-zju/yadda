@@ -100,7 +100,6 @@ getTopoSorter = (allRevs) ->
       _.sortBy(revsOrIds, (r) -> getSeriesIdChain(r.id))
   [getSeriesId, topoSort]
 
-
 # Given a list of actions, return a function:
 # - isSeriesAction: (action) -> true | false
 _seriesRe = /\bth(e|is) series\b/i
@@ -436,7 +435,7 @@ changeFilter = (state, title, name, multiple = false) ->
     active[title] = []
   else if not _.isArray(active[title]) or not multiple
     active[title] = [name]
-    showNux state, 'multi-filter', 'Hint: Hold "Ctrl" and click to select (or remove) multiple filters.'
+    showNux state, 'multi-filter', 'Hint: Hold "Alt" and click to select (or remove) multiple filters.'
   else
     v = (active[title] ||= [])
     if _.includes(v, name)
@@ -466,7 +465,7 @@ showDialog = (state, name) ->
 renderFilterList = (state) ->
   active = state.activeFilter
   handleFilterClick = (e, title, name) ->
-    changeFilter state, title, name, e.ctrlKey
+    changeFilter state, title, name, e.ctrlKey || e.altKey
     e.preventDefault()
     e.stopPropagation()
 
@@ -612,12 +611,12 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
       ids = _.find(grevs, (revs) -> _.includes(revs.map((r) -> r.id), id)).map((r) -> r.id)
 
   handleCheckedClick = (id, e) ->
-    if e.ctrlKey
+    if e.ctrlKey || e.altKey
       ids = getSeriesRevIds(id)
       markNux state, 'tick-series'
     else
       ids = [id]
-      showNux state, 'tick-series', 'Hint: Hold "Ctrl" and click to toggle all checkboxes in a series'
+      showNux state, 'tick-series', 'Hint: Hold "Alt" and click to toggle all checkboxes in a series'
     checked = state.checked
     ids.forEach (id) -> checked[id] = !checked[id]
     state.checked = checked
@@ -629,7 +628,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
       markNux state, 'row-click'
     else
       ids = [id]
-    if e.ctrlKey
+    if e.ctrlKey || e.altKey
       # invert
       selected = _.keyBy(state.currRevs, (id) -> id)
       ids.forEach (id) ->
@@ -642,7 +641,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
     else
       # select
       state.currRevs = ids
-      showNux state, 'row-click', 'Hint: Hold "Ctrl" and click to focus multiple revisions. Double click to focus a series.'
+      showNux state, 'row-click', 'Hint: Hold "Alt" and click to focus multiple individual revisions. Double click to focus a series.'
 
   handleLinkClick = (e) ->
     if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
@@ -673,7 +672,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
           columnCount += 1
           th className: 'time created', style: {width: 90}, onClick: (-> cycleSortKeys state, ['created']), 'Created'
         th className: 'time updated', style: {width: 90}, onClick: (->
-          showNux state, 'sort-created', 'Hint: Click at "Updated" the 3rd time to sort revisions by creation time'
+          showNux state, 'sort-created', 'Hint: Click "Updated" the 3rd time to sort revisions by creation time'
           cycleSortKeys state, ['updated', 'created']), 'Updated'
         # checkbox
         th style: {width: 28, padding: '8px 0px'},
@@ -758,12 +757,12 @@ renderFilterPresets = (state) ->
   presets = state.presets
   handlePresentSave = (i, e) ->
     presets = state.presets
-    if e.ctrlKey
+    if e.ctrlKey || e.altKey
       delete presets["#{i}"]
     else
       presets["#{i}"] = _.clone(state.activeFilter)
     state.presets = presets
-  renderConfigItem 'Filter Presets', 'Once filters are saved to presets, they can be quickly activated by pressing corresponding number keys.',
+  renderConfigItem 'Filter Presets', 'Click numbers below to save the current filter selection to corresponding presets. Then they can be quickly activated by pressing corresponding number keys.',
     span className: 'config-value phui-button-bar',
       [1..6].map (i) ->
         preset = presets["#{i}"]
