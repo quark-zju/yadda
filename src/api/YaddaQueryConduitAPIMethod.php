@@ -216,7 +216,35 @@ EOT
 
     $phids = mpull($xactions, 'getAuthorPHID');
     $phid_author_map = self::loadAuthorNameMap($viewer, $phids, $profile_map);
+
+    $changesets = self::loadInlineChangesets($viewer, $xactions);
     
+    // Build commentPHID to xactionID map for resolving ReplyToCommentPHID
+    $comment_phid_to_xaction_id = array();
+    foreach ($xactions as $xaction) {
+      if ($xaction->hasComment()) {
+        $comment = $xaction->getComment();
+        $comment_phid_to_xaction_id[$comment->getPHID()] = $xaction->getID();
+      }
+    }
+
+    // Build diffPHID to diffID map for update actions
+    $diff_phids = array();
+    foreach ($xactions as $xaction) {
+      $type = $xaction->getTransactionType();
+      if ($type == DifferentialTransaction::TYPE_UPDATE) {
+        $diff_phid = $xaction->getNewValue();
+        if ($diff_phid) {
+          $diff_phids[] = $diff_phid;
+        }
+      }
+    }
+    $diffs = id(new DifferentialDiffQuery())
+      ->setViewer($viewer)
+      ->withPHIDs($diff_phids)
+      ->execute();
+    $diff_phid_to_id = mpull($diffs, 'getID', 'getPHID');
+
     // Action keys could be: accept, reject, close, resign, abandon, reclaim,
     // reopen, accept, request-review, commandeer, plan-changes
     $actions = DifferentialRevisionActionTransaction::loadAllActions();
@@ -240,6 +268,7 @@ EOT
         $value['type'] = 'inline';
       } else if ($type == DifferentialTransaction::TYPE_UPDATE) {
         $value['type'] = 'update';
+        $value['diffId'] = idx($diff_phid_to_id, $xaction->getNewValue());
       } else if ($type == PhabricatorTransactions::TYPE_COMMENT) {
         $value['type'] = 'comment';
       } else if (array_key_exists($type, $type_action_map)) {
@@ -247,7 +276,22 @@ EOT
       }
 
       if ($xaction->hasComment()) {
-        $value['comment'] = $xaction->getComment()->getContent();
+        $comment = $xaction->getComment();
+        $value['comment'] = $comment->getContent();
+
+        // src/applications/differential/storage/DifferentialInlineComment.php
+        if ($type == DifferentialTransaction::TYPE_INLINE) {
+          $value['replyTo'] = idx(
+            $comment_phid_to_xaction_id, $comment->getReplyToCommentPHID());
+          // Also get the file name and line number
+          $value['line'] = $comment->getLineNumber();
+          $changeset = idx($changesets, $comment->getChangesetID());
+          if ($changeset) {
+            $value['path'] = $changeset->getDisplayFilename();
+            // Also get the diff ID
+            $value['diffId'] = $changeset->getDiffID();
+          }
+        }
       }
 
       if (array_key_exists('type', $value)) {
@@ -297,6 +341,37 @@ EOT
       $results[$revision->getID()] = $depends_on_ids;
     }
     return $results;
+  }
+
+  static protected function loadInlineChangesets(
+    PhabricatorUser $viewer,
+    array $xactions) { // return {$changeset_id => $changeset}
+    assert_instances_of($xactions, 'DifferentialTransaction');
+
+    $inlines = array();
+    foreach ($xactions as $xaction) {
+      if ($xaction->getTransactionType() ==
+          DifferentialTransaction::TYPE_INLINE) {
+        $inlines[] = $xaction;
+      }
+    }
+
+    $changeset_ids = array();
+    foreach ($inlines as $inline) {
+      $changeset_ids[] = $inline->getComment()->getChangesetID();
+    }
+
+    if ($changeset_ids) {
+      $changesets = id(new DifferentialChangesetQuery())
+        ->setViewer($viewer)
+        ->withIDs($changeset_ids)
+        ->execute();
+      return mpull($changesets, null, 'getID');
+      // return id(new DifferentialChangeset())->loadAllWhere(
+      //   'id IN (%Ld)', $changeset_ids);
+    } else {
+      return array();
+    }
   }
 
   static protected function loadAuthorNameMap(
