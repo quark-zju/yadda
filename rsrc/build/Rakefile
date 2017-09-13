@@ -9,7 +9,7 @@ CLOBBER.include([YADDA_JS_DEST, YADDA_CSS_DEST])
 
 task :default => [:celerity]
 
-YADDA_JS_DEFAULT_SCRIPT = "#{RSRC_PATH}/js/yadda-default-code.coffee"
+YADDA_JS_DEFAULT_SCRIPTS = Dir["#{RSRC_PATH}/js/yadda-default-scripts/*.coffee"].sort
 YADDA_JS_FRAMEWORK_SCRIPT = "#{RSRC_PATH}/js/yadda-home.coffee"
 YADDA_JS_3RD_SRC = if DEV
                      [
@@ -30,15 +30,21 @@ YADDA_JS_3RD_SRC = if DEV
                    end
 
 file YADDA_JS_DEST => [
-  YADDA_JS_DEFAULT_SCRIPT,
+  *YADDA_JS_DEFAULT_SCRIPTS,
   YADDA_JS_FRAMEWORK_SCRIPT,
   *YADDA_JS_3RD_SRC,
 ] do |t|
   File.open('yadda-tmp.coffee', 'w') do |f|
     f.puts "__DEV__=#{DEV ? 1 : 0}"
-    f.puts "yaddaDefaultCode = '''"
-    f.write File.read(YADDA_JS_DEFAULT_SCRIPT).gsub('\\', '\\\\\\\\')
-    f.puts "'''"
+    f.puts 'YADDA_DEFAULT_SCRIPTS = {}'
+    f.puts 'YADDA_DEFAULT_SCRIPT_NAMES = []'
+    YADDA_JS_DEFAULT_SCRIPTS.each do |path|
+      name = File.basename(path)[/^[0-9]*([a-zA-Z-]*)/, 1].gsub(/-[a-z]/) {|x| x[1].capitalize}
+      f.puts "YADDA_DEFAULT_SCRIPTS['#{name}'] = '''"
+      f.write File.read(path).gsub('\\', '\\\\\\\\')
+      f.puts "'''"
+      f.puts "YADDA_DEFAULT_SCRIPT_NAMES.push '#{name}'"
+    end
     f.write File.read(YADDA_JS_FRAMEWORK_SCRIPT)
   end
 
