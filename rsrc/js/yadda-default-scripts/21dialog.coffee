@@ -1,5 +1,5 @@
 {a, br, button, code, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
-{markNux} = this
+{markNux, renderPreview} = this
 
 @renderDialog = (state) ->
   name = state.dialog
@@ -7,15 +7,15 @@
     return
   [
     div className: 'jx-mask', key: '1'
-    div className: 'jx-client-dialog', style: {left: 0, top: 76}, key: '2',
-      div className: 'aphront-dialog-view aphront-dialog-view-standalone',
+    div className: "jx-client-dialog dialog-#{name}", key: '2',
+      div className: "aphront-dialog-view aphront-dialog-view-standalone dialog-#{name}",
         div className: 'aphront-dialog-head',
           div className: 'phui-header-shell',
             h1 className: 'phui-header-header', _.capitalize(name)
         if name == 'settings'
           renderSettings state
-        div className: 'aphront-dialog-tail grouped',
-          button onClick: (-> state.dialog = null), 'Looks good'
+        else if name == 'preview'
+          renderPreview state, state.currRevs
   ]
 
 renderConfigItem = (name, description, children...) ->
@@ -94,10 +94,12 @@ renderConfigReset = (state) ->
       button className: 'button-red small', onClick: handleReset, 'Reset'
 
 renderSettings = (state) ->
-  div style: {margin: 16},
-    div className: 'config-list',
+  div null,
+    div className: 'config-list', style: {margin: 16},
       renderBooleanConfig state, 'Series Display', 'configFullSeries', 'If D1 and D2 belong to a same series, and D1 is filtered out but not D2. This controls whether D1 is visible or not.', 'Show Entire Series', 'Show Only Individual Revisions'
       renderBooleanConfig state, 'Archive on Open', 'configArchiveOnOpen', 'Archive revisions being opened. Useful if you want to see a patch only once.', 'Enable Archive on Open', 'Disable Archive on Open'
       renderFilterPresets state
       renderCodeSourceSelector state
       renderConfigReset state
+    div className: 'aphront-dialog-tail grouped',
+      button className: 'button-grey', onClick: (-> state.dialog = null), 'Close'

@@ -19,15 +19,16 @@
 .yadda .profile.accept { border-bottom-color: #139543; }
 .yadda .profile.reject { border-bottom-color: #C0392B; }
 .yadda .profile.update { border-bottom-color: #3498DB; }
-.yadda .profile.request-review { border-bottom: 4px solid #6e5cb6; }
+.yadda .profile.request-review { border-bottom-color: #6e5cb6; }
 .yadda td.title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yadda tr.read.muted { background: #f8e9e8; }
 .yadda tr.passive-appear, .yadda tr.passive-appear:hover { background-color: #EFF1F7; }
 .yadda tr.passive-appear td.title, .yadda tr.passive-appear td.time, .yadda tr.passive-appear td.size { opacity: 0.6; }
 .yadda tr.selected, .yadda tr.selected:hover { background-color: #FDF3DA; }
 .yadda .table-bottom-info { margin-top: 12px; margin-left: 8px; display: block; color: #74777D; }
-.yadda .phab-status.accepted { color: #139543 }
-.yadda .phab-status.needs-revision { color: #c0392b }
+.yadda .yadda-status-has-accepts, .yadda .yadda-status-has-accepts.yadda-status-has-rejects, .yadda .preview-action-accept { color: #139543 }
+.yadda .yadda-status-has-rejects, .yadda .preview-action-reject, .yadda .preview-action-plan-changes { color: #c0392b }
+.yadda .preview-action-request-review { color: #6e5cb6; }
 .yadda .action-selector { border: 0; border-radius: 0; }
 .yadda .action-selector:focus { outline: none; }
 .yadda .yadda-content { margin-bottom: 16px }
@@ -50,11 +51,33 @@
 .device-phone td.selector-indicator { display: none; }
 .device-phone td.author { display: none; }
 .device-phone td.title { float: left; font-size: 1.2em; max-width: 100%; }
-.device-phone td.phab-status { display: none; }
+.device-phone td.yadda-status { display: none; }
 .device-phone td.actions { float: right; }
 .device-phone td.checkbox { display: none; }
 .device-phone .table-bottom-info { margin-bottom: 30px; }
 .device-phone .yadda .config-oneline-pair { flex-wrap: wrap; }
 .device-phone .yadda .config-desc { margin-left: 0; }
 .device-phone .yadda .config-name { width: 100%; text-align: left; }
+
+.yadda .jx-client-dialog { left: 0; top: 0; }
+.yadda .aphront-dialog-view.dialog-settings { margin-top: 76px; }
+.yadda .aphront-dialog-view.dialog-preview { width: 720px; }
+.yadda .dialog-preview .aphront-dialog-head { display: none; }
+.yadda .preview-revision { margin: 16px; }
+.yadda .preview-revision-title { font-weight: bold; }
+.yadda .preview-revision-summary { margin-left: 26px; white-space: pre-wrap; }
+.yadda .preview-action { display: flex; align-items: baseline; line-height: 20px; }
+.yadda .preview-action.read { opacity: 0.7; }
+.yadda .preview-action-profile { width: 24px; }
+.yadda .preview-action-profile .profile { height: 18px; width: 18px; }
+.yadda .preview-action-date, .yadda .preview-action-source { color: grey; }
+.yadda .preview-action-source::before, .yadda .preview-action-date::before { margin: 0 4px; color: grey; content: '·' }
+.yadda .preview-action-comment { white-space: pre-wrap; }
+.yadda .preview-profile-list { padding: 1px 0px 1px 6px; border-radius: 2px; margin-left: 8px; display: inline-block; }
+.yadda .preview-profile-list .profile { vertical-align: text-top; width: 18px; height: 18px; }
+.yadda .preview-accept-list { background: #d7eddf; color: #139543; }
+.yadda .preview-reject-list { background: #f4dddb; color: #c0392b; }
+.yadda .preview-diff-content { line-height: normal; background: #EBECEE; overflow: auto; padding: 4px; margin-top: 4px; margin-left: 24px; }
+.yadda .preview-diff-link { margin-left: 8px; }
+.yadda .preview-diff-fetching-tip { margin-left: 8px; color: grey; }
 """

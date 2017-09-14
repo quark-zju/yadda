@@ -185,7 +185,7 @@ _init = ->
       coffeeCode = YADDA_DEFAULT_SCRIPTS[basename]
     coffeeCode
 
-  _request = (path, data, callback, onError) ->
+  request = (path, data, callback, onError) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
     req = new (JX.Request)(path, callback)
     if onError
@@ -313,7 +313,7 @@ _init = ->
         else
           msg = ''
         notify "Failed to sync state with Phabricator server#{msg}. Check network connection or refresh this page.", 8000
-      _request '/api/yadda.setstate', data: remote.toJSON(), ((r) -> r.error_info && showError(r.error_info)), showError
+      request '/api/yadda.setstate', data: remote.toJSON(), ((r) -> r.error_info && showError(r.error_info)), showError
   setInterval _syncTick, 2200
 
   refresh = ->
@@ -332,7 +332,7 @@ _init = ->
     if initial.state
       _processResult initial.state
     else
-      _request '/api/yadda.query', null, (r) ->
+      request '/api/yadda.query', null, (r) ->
         if r.result
           state.updatedAt = moment()
           state.error = null

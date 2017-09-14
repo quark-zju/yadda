@@ -1,13 +1,12 @@
 # Main dashboard page
 {a, br, button, code, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
 
-{MUTE_DATE, cycleSortKeys, describeAction, getDateModified, getDateRead, getFilterGroups, getIsSeriesAction, getSelectedFilters, getStatusCalculator, getTopoSorter, groupRevs, installKeyboardShortcuts, markAsRead, markNux, renderDialog, sensibleActionType, showDialog, showNux, sortKeyFunctions, stylesheet} = this
+{MUTE_DATE, cycleSortKeys, describeAction, getDateModified, getDateRead, getFilterGroups, getIsSeriesAction, getSelectedFilters, getStatusCalculator, getTopoSorter, groupRevs, handleRevisionLinkClick, installKeyboardShortcuts, markAsRead, markNux, renderDialog, sensibleActionType, showDialog, showNux, sortKeyFunctions, stylesheet} = this
 
 @renderMainPage = (state) ->
   allRevs = state.revisions
   [getSeriesId, topoSort] = getTopoSorter(allRevs)
   getStatus = getStatusCalculator(state, getSeriesId)
-  window.getStatus = getStatus
   revs = filterRevs(state, getStatus)
   grevs = groupRevs(state, revs, getSeriesId, topoSort)
   installKeyboardShortcuts state, grevs, revs, topoSort
@@ -205,7 +204,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
   filteredRevIds = _.keyBy(filteredRevs, (r) -> r.id)
   readMap = state.readMap # {id: dateModified}
   checked = state.checked
-  columnCount = 7 # used by "colSpan" - count "th" below
+  columnCount = 8 # used by "colSpan" - count "th" below
 
   getSeriesRevIds = (id) ->
       ids = _.find(grevs, (revs) -> _.includes(revs.map((r) -> r.id), id)).map((r) -> r.id)
@@ -244,9 +243,7 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
       showNux state, 'row-click', 'Hint: Hold "Alt" and click to focus multiple individual revisions. Double click to focus a series.'
 
   handleLinkClick = (e) ->
-    if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
-      revId = /\/D([0-9]*)/.exec(e.currentTarget.href)[1]
-      markAsRead state, null, [revId]
+    handleRevisionLinkClick state, e
 
   describeStatus = (rev) ->
     status = getStatus(rev.id)
@@ -262,10 +259,8 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
         # profile
         th style: {width: 28, padding: '8px 0px'}, onClick: -> cycleSortKeys state, ['author'], title: 'Author'
         th onClick: (-> cycleSortKeys state, ['title', 'stack size']), 'Revision'
-        if state.activeSortKey == 'phabricator status'
-          columnCount += 1
-          th className: 'phab-status', style: {width: 90}, onClick: (-> cycleSortKeys state, ['phabricator status']), 'Status'
-        th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count', 'phabricator status']), 'Activities'
+        th className: 'yadda-status', style: {width: 50}, 'Needs'
+        th className: 'actions', onClick: (-> cycleSortKeys state, ['activity count']), 'Activities'
         th className: 'size', style: {width: 50, textAlign: 'right'}, onClick: (-> cycleSortKeys state, ['line count', 'stack size']), 'Size'
         if state.activeSortKey == 'created'
           markNux state, 'sort-created'
@@ -293,6 +288,12 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
           actions = r.actions.filter((x) -> parseInt(x.dateModified) > ctime) # do not show actions creating a revision
           readActions = actions.filter((x) -> parseInt(x.dateModified) <= atime)
           unreadActions = actions.filter((x) -> parseInt(x.dateModified) > atime)
+          status = getStatus(r.id)
+          statusClassName = ''
+          if status.accepts.length > 0
+            statusClassName += 'has-accepts'
+          else if status.rejects.length > 0
+            statusClassName += 'has-rejects'
 
           # NUX prompts about certain cases
           if currRevs[r.id]
@@ -308,8 +309,12 @@ renderTable = (state, grevs, filteredRevs, getStatus) ->
               strong onClick: handleCheckedClick.bind(this, r.id), title: describeStatus(r), "D#{r.id} "
               a href: "/D#{r.id}", onClick: handleLinkClick,
                 strong null, r.title
-            if state.activeSortKey == 'phabricator status'
-              td className: "phab-status #{r.status.toLowerCase().replace(/ /g, '-')}", r.status
+            td className: "yadda-status",
+              span className: "#{status.accepts.length > 0 && 'yadda-status-has-accepts' || ''} #{status.rejects.length > 0 && 'yadda-status-has-rejects' || ''}",
+                if status.rejects.length > 0
+                  'Revision'
+                else if status.accepts.length > 0
+                  '2nd Pass'
             td className: 'actions',
               renderActivities state, r, readActions, "read #{unreadActions.length > 0 && 'shrink' || ''}", handleLinkClick
               renderActivities state, r, unreadActions, 'unread', handleLinkClick
