@@ -7,12 +7,12 @@
  */
 return array(
   'names' => array(
-    'yadda-home.js' => 'f9dc6743',
+    'yadda-home.js' => '846adcbd',
     'yadda.css' => 'c627d025',
   ),
   'symbols' => array(
     'yadda-css' => 'c627d025',
-    'yadda-home-js' => 'f9dc6743',
+    'yadda-home-js' => '846adcbd',
   ),
   'requires' => array(),
   'packages' => array(),
