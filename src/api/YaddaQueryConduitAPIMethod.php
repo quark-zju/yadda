@@ -19,7 +19,7 @@ final class YaddaQueryConduitAPIMethod extends ConduitAPIMethod {
     $text = pht(<<<EOT
 **Input**
 
-- `revisionids`: a list of Differential Revision IDs.
+- `revisionIDs`: a list of Differential Revision IDs.
   If not set, return all open revisions.
 
 **Output**
@@ -83,7 +83,7 @@ EOT
 
   protected function defineParamTypes() {
     return array(
-      'revisionids' => 'optional list<int>',
+      'revisionIDs' => 'optional list<int>',
     );
   }
 
@@ -93,7 +93,7 @@ EOT
 
   protected function execute(ConduitAPIRequest $request) {
     $viewer = $request->getUser();
-    $ids = $request->getValue('revisionids', array());
+    $ids = $request->getValue('revisionIDs', array());
     return self::query($viewer, $ids);
   }
 
@@ -283,8 +283,10 @@ EOT
         if ($type == DifferentialTransaction::TYPE_INLINE) {
           $value['replyTo'] = idx(
             $comment_phid_to_xaction_id, $comment->getReplyToCommentPHID());
+          $value['isNewFile'] = $comment->getIsNewFile();
           // Also get the file name and line number
           $value['line'] = $comment->getLineNumber();
+          $value['lineLength'] = $comment->getLineLength();
           $changeset = idx($changesets, $comment->getChangesetID());
           if ($changeset) {
             $value['path'] = $changeset->getDisplayFilename();

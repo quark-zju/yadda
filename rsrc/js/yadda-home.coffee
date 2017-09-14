@@ -185,13 +185,13 @@ _init = ->
       coffeeCode = YADDA_DEFAULT_SCRIPTS[basename]
     coffeeCode
 
-  request = (path, data, callback, onError) ->
+  request = (path, data, callback, onError, expectCSRF = false) ->
     # JX.Request handles CSRF token (see javelin-behavior-refresh-csrf)
     req = new (JX.Request)(path, callback)
     if onError
       req.listen 'error', onError
     req.setResponseType('JSON')
-    req.setExpectCSRFGuard(false)
+    req.setExpectCSRFGuard(expectCSRF)
     if data
       req.setData(data)
     req.send()
@@ -298,7 +298,7 @@ _init = ->
 
   element = React.createElement(Root)
   node = ReactDOM.render element, document.querySelector('.yadda-root')
-  redraw = -> node.forceUpdate()
+  redraw = -> setTimeout (-> node.forceUpdate()), 1
 
   _lastRemoteSync = state.remote.updatedAt
   _syncTick = ->
