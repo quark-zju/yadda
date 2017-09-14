@@ -39,7 +39,7 @@ file YADDA_JS_DEST => [
     f.puts 'YADDA_DEFAULT_SCRIPTS = {}'
     f.puts 'YADDA_DEFAULT_SCRIPT_NAMES = []'
     YADDA_JS_DEFAULT_SCRIPTS.each do |path|
-      name = File.basename(path)[/^[0-9]*([a-zA-Z-]*)/, 1].gsub(/-[a-z]/) {|x| x[1].capitalize}
+      name = File.basename(path)[/^[0-9-]*([a-zA-Z-]*)/, 1].gsub(/-[a-z]/) {|x| x[1].capitalize}
       f.puts "YADDA_DEFAULT_SCRIPTS['#{name}'] = '''"
       f.write File.read(path).gsub('\\', '\\\\\\\\')
       f.puts "'''"
