@@ -82,7 +82,7 @@
 .yadda .preview-diff-fetching-tip { margin-left: 8px; color: grey; }
 
 .yadda .aphront-dialog-view.dialog-reply { width: 720px; }
-.yadda .reply-editor { resize: vertical; overflow: auto; font-family: monospace; width: 100%; min-height: 600px; border: none; }
+.yadda .reply-editor { resize: vertical; overflow: auto; font-family: monospace; width: 100%; min-height: 500px; border: none; }
 .yadda .reply-editor:focus { box-shadow: none; }
 
 .yadda .reply-draft-actions { display: flex; flex-flow: row wrap; margin-bottom: 5px;  }
