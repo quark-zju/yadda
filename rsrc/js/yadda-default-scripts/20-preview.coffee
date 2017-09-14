@@ -375,6 +375,7 @@ renderDraftActions = (actions) ->
       span className: "reply-draft-action reply-draft-action-#{x.type}", key: i,
         desc
 
+_checkChangeTimer = null
 @renderReply = (state, revIds) ->
   text = state.replyDraft
   actions = extractActions text
@@ -411,6 +412,22 @@ renderDraftActions = (actions) ->
       e.preventDefault()
     else
       scrollIntoView('.jx-client-dialog')
+
+  # 3rd-party extensions like GhostText may change the text without triggering onChange event
+  checkChanges = ->
+    if state.dialog != 'reply'
+      return
+    t = document.querySelector '.reply-editor'
+    if t.value != state.replyDraft
+      state.replyDraft = t.value
+    else
+      _checkChangeTimer = setTimeout checkChanges, 1000
+
+  if _checkChangeTimer
+    try
+      clearTimeout _checkChangeTimer
+    _checkChangeTimer = null
+  _checkChangeTimer = setTimeout checkChanges, 1000
 
   div null,
     style null, 'html, body { overflow: hidden; }'
