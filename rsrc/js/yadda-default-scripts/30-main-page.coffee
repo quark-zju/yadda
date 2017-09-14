@@ -120,7 +120,7 @@ renderActivities = (state, rev, actions, extraClassName, handleLinkClick) ->
       elements.push renderProfile state, author, href: "/D#{rev.id}##{actionId}", onClick: handleLinkClick, title: title, className: "#{extraClassName} #{className} profile action", key: actionId
     author = className = title = actionId = ''
   isSeriesAction = getIsSeriesAction(actions)
-  _.sortBy(actions, (x) -> parseInt(x.dateCreated)).forEach (x) ->
+  _.sortBy(actions, (x) -> parseInt(x.id)).forEach (x) ->
     if x.author != author
       append()
     author = x.author

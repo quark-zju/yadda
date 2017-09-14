@@ -72,6 +72,7 @@ _seriesRe = /\bth(e|is) series\b/i
 # - Set '_status: {accept: [username], reject: [username]}'
 #   - accept is sticky
 #   - reject is not sticky
+#   - accept and reject override each other.
 #   - 'request-review'
 #   - 'plan-changes' is seen as 'rejected'
 #   - SPECIAL: comment with "this series" applies to every patches in the
@@ -126,13 +127,14 @@ _seriesRe = /\bth(e|is) series\b/i
     rejects = []
     # combine normal actions and series actions
     actions = (seriesActions[seriesId] || []).concat(revActions[revId])
-    _.sortBy(actions, ([verb, x, rId]) -> parseInt(x.dateCreated)).forEach ([verb, x, rId]) ->
+    _.sortBy(actions, ([verb, x, rId]) -> parseInt(x.id)).forEach ([verb, x, rId]) ->
       if verb == 'request-review'
         accepts = []
         rejects = []
       else if verb == 'update'
         rejects = []
       else if verb == 'accept'
+        rejects = []
         accepts.push([rId, x])
       else if verb == 'reject'
         accepts = []
@@ -194,6 +196,30 @@ _seriesRe = /\bth(e|is) series\b/i
 @getDateCodeUpdated = (rev) ->
   _.max(rev.actions.map((t) -> t.type == 'update' && parseInt(t.dateModified) || -1)) || -1
 
+# async version of calling Conduit API
+@requestAsync = requestAsync = (path, data, expectCSRF = false) ->
+  p = new Promise (resolve, reject) ->
+    request path, data, ((r) -> 
+      if expectCSRF
+        if r.error
+          reject r.error
+        else
+          resolve r.payload
+      else
+        if r.result
+          resolve r.result
+        else
+          reject r.error_info
+    ), ((e) -> reject e), expectCSRF
+  await p
+
+@callConduit = (api, data) ->
+  pairs = {}
+  for k, v of data
+    # use params[name] so value could be json encoded
+    pairs["params[#{k}]"] = JSON.stringify(v)
+  await requestAsync "/api/#{api}", pairs
+
 # Open revisions in new tabs. Handles markAsRead.
 @openRevisions = (state, revIds) ->
   if state.configArchiveOnOpen
@@ -254,7 +280,7 @@ _seriesRe = /\bth(e|is) series\b/i
       result[filters[0][0]] = true
   result
 
-@showDialog = (state, name) ->
+@showDialog = (state, name, args...) ->
   if state.dialog == name
     state.dialog = null
   else

@@ -70,5 +70,7 @@ normalizeState = (state) ->
     storeRemotely 'configFullSeries', true
   if _.isUndefined(state.configArchiveOnOpen)
     storeRemotely 'configArchiveOnOpen', false
+  if _.isUndefined(state.replyDraft)
+    storeLocally 'replyDraft', ''
   if !_.isUndefined(state.remote.code) && state.configCodeSource == CODE_SOURCE_BUILTIN
     showNux state, 'code-switch', 'Hint: If you are looking for your own customized script about Yadda UI, go to "Settings", change "Interface Script" option, and then click "Edit".'

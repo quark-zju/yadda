@@ -81,7 +81,8 @@ _lastIndex = -1
 
   # Refresh only works for logged-in user. Since otherwise there is no valid CSRF token for Conduit API.
   if state.user
-    shortcutKey ['r'], 'Fetch updates from server immediately.', refresh
+    shortcutKey ['r'], 'Reply focused revisions in batches.', -> showDialog state, 'reply'
+    shortcutKey ['R'], 'Fetch updates from server immediately.', refresh
 
   # Filter Presets
   [1..6].forEach (ch) ->

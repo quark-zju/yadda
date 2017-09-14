@@ -1,5 +1,5 @@
 {a, br, button, code, div, hr, h1, input, kbd, li, optgroup, option, p, progress, select, span, strong, style, table, tbody, td, th, thead, tr, ul} = React.DOM
-{markNux, renderPreview} = this
+{markNux, renderPreview, renderReply} = this
 
 @renderDialog = (state) ->
   name = state.dialog
@@ -16,6 +16,8 @@
           renderSettings state
         else if name == 'preview'
           renderPreview state, state.currRevs
+        else if name == 'reply'
+          renderReply state, state.currRevs
   ]
 
 renderConfigItem = (name, description, children...) ->

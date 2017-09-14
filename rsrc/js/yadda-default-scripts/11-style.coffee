@@ -80,4 +80,14 @@
 .yadda .preview-diff-content { line-height: normal; background: #EBECEE; overflow: auto; padding: 4px; margin-top: 4px; margin-left: 24px; }
 .yadda .preview-diff-link { margin-left: 8px; }
 .yadda .preview-diff-fetching-tip { margin-left: 8px; color: grey; }
+
+.yadda .aphront-dialog-view.dialog-reply { width: 720px; }
+.yadda .reply-editor { resize: vertical; overflow: auto; font-family: monospace; width: 100%; min-height: 600px; border: none; }
+.yadda .reply-editor:focus { box-shadow: none; }
+
+.yadda .reply-draft-actions { display: flex; flex-flow: row wrap; margin-bottom: 5px;  }
+.yadda .reply-draft-action { display: inline-block; padding: 2px 6px; border-radius: 2px; margin: 0 8px 5px 0; }
+.yadda .reply-draft-action-accept { background: #d7eddf; color: #139543; }
+.yadda .reply-draft-action-reject { background: #f4dddb; color: #c0392b; }
+.yadda .reply-draft-action-comment, .yadda .reply-draft-action-inline { background: #EBECEE; }
 """
