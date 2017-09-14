@@ -66,7 +66,7 @@ _seriesRe = /\bth(e|is) series\b/i
     action.type
 
 # Return a function:
-# - getStatus: (revId) -> {accepts: [user], rejects: [user]}
+# - getStatus: (revId) -> {accepts: [(revId, action)], rejects: [(revId, action)]}
 # Update state.readMap according to series commented status
 # Re-calculate revision statuses using 'actions' data.
 # - Set '_status: {accept: [username], reject: [username]}'
@@ -200,6 +200,11 @@ _seriesRe = /\bth(e|is) series\b/i
     markAsRead state, null, revIds
   revIds.forEach (r) -> window.open("/D#{r}", '_blank')
 
+@handleRevisionLinkClick = (state, e) ->
+ if state.configArchiveOnOpen && _.includes([0, 1], e.button) # 0: left, 1: middle
+   revId = /\/D([0-9]*)/.exec(e.currentTarget.href)[1]
+   markAsRead state, null, [revId]
+
 # Transaction to human readable text
 @describeAction = (action) ->
   # See "ACTIONKEY" under phabricator/src/applications/differential/xaction
@@ -208,7 +213,7 @@ _seriesRe = /\bth(e|is) series\b/i
     'comment': 'commented'
     'update': 'updated the code'
     'accept': 'accepted'
-    'reject': 'rejected'
+    'reject': 'requested changes'
     'close': 'closed the revision'
     'resign': 'resigned as reviewer'
     'abandon': 'abandoned the revision'
@@ -218,6 +223,8 @@ _seriesRe = /\bth(e|is) series\b/i
     'request-review': 'requested review'
     'commandeer': 'commandeered the revision'
   }[action.type]
+  if action.path and action.line
+    verb += " at #{action.path}:#{action.line}"
   if not verb
     return
   desc = "#{action.author} #{verb}"
@@ -248,8 +255,11 @@ _seriesRe = /\bth(e|is) series\b/i
   result
 
 @showDialog = (state, name) ->
-  state.dialog = name
-  scrollIntoView('.jx-client-dialog')
+  if state.dialog == name
+    state.dialog = null
+  else
+    state.dialog = name
+    scrollIntoView('.jx-client-dialog')
 
 # function to sort columns
 @sortKeyFunctions = sortKeyFunctions = [
@@ -259,6 +269,5 @@ _seriesRe = /\bth(e|is) series\b/i
   ['title', (revs, state) -> _.min(revs.map (r) -> r.title)]
   ['stack size', (revs, state) -> revs.length]
   ['activity count', (revs, state) -> _.sum(revs.map (r) -> r.actions.filter((x) -> parseInt(x.dateCreated) > parseInt(r.dateCreated)).length)]
-  ['phabricator status', (revs, state) -> _.sortedUniq(revs.map (r) -> r.status)]
   ['line count', (revs, state) -> _.sum(revs.map (r) -> parseInt(r.lineCount))]
 ]

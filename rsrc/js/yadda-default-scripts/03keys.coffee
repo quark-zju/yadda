@@ -1,6 +1,6 @@
 # Keyboard shortcuts
 
-{MUTE_DATE, markAsRead, markNux, openRevisions, scrollIntoView} = this
+{MUTE_DATE, markAsRead, markNux, openRevisions, scrollIntoView, showDialog} = this
 
 _lastIndex = -1
 
@@ -20,11 +20,13 @@ _lastIndex = -1
   focusNext = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.min([i + 1, revIds.length - 1])] || []
-      scrollIntoView('td.selected')
+      if not state.dialog
+        scrollIntoView('td.selected')
   focusPrev = (revIds) ->
       i = getIndex(revIds)
       state.currRevs = revIds[_.max([i - 1, 0])] || []
-      scrollIntoView('td.selected')
+      if not state.dialog
+        scrollIntoView('td.selected')
 
   shortcutKey ['j'], 'Focus on revisions of the next series.', -> focusNext(getRevIds(false))
   shortcutKey ['k'], 'Focus on revisions of the previous series.', -> focusPrev(getRevIds(false))
@@ -48,10 +50,19 @@ _lastIndex = -1
   shortcutKey ['c'], 'Copy focused revision numbers to clipboard (useful for phabread).', -> copyIds(state.currRevs || [])
   shortcutKey ['C'], 'Copy selected revision numbers to clipboard.', -> copyIds(_.keys(_.pickBy(state.checked)))
 
-  shortcutKey ['f'], 'Remove filtered out revisions from focus', ->
+  shortcutKey ['f'], 'Remove filtered out revisions from focus.', ->
     revIds = _.keyBy(revs, (r) -> r.id)
     state.currRevs = state.currRevs.filter((r) -> revIds[r])
     markNux state, 'grey-rev'
+
+  shortcutKey ['p'], 'Preview focused revisions.', ->
+    if state.dialog == 'preview'
+      state.autoDiffPreview = !state.autoDiffPreview
+      if state.autoDiffPreview
+        redraw()
+        return
+    state.autoDiffPreview = false
+    showDialog state, 'preview'
 
   shortcutKey ['o'], 'Open one of focused revisions in a new tab.', ->
     r = _.min(state.currRevs)
