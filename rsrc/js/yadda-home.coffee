@@ -1,11 +1,7 @@
-###*
-# @provides yadda-home
-# @requires coffeescript
-# @requires lodash
-# @requires moment
-# @requires react
-# @requires react-dom
-###
+React.DOM ||= new Proxy {}, get: (target, name) ->
+  factory = React.createElement.bind(null, name)
+  factory.type = name
+  factory
 
 redraw = -> return
 
