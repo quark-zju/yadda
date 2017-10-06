@@ -43,8 +43,8 @@
 .device-tablet .action-selector.mobile { display: none; }
 .device-phone .action-selector.embed { display: none; }
 .device-desktop .yadda-content { margin: 16px; }
-.device-desktop th.actions { width: 30%; }
-.device-tablet th.actions { width: 35%; }
+.device-desktop th.actions { width: 25%; }
+.device-tablet th.actions { width: 30%; }
 .device-tablet th.size, .device-tablet td.size { display: none; }
 .device-tablet .yadda table, .device-phone .yadda table { border-left: none; border-right: none; }
 .device-phone thead, .device-phone td.time, .device-phone td.size { display: none; }
