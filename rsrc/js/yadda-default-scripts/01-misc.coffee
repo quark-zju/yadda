@@ -47,6 +47,27 @@ _shownNux = {}
       _.sortBy(revsOrIds, (r) -> getSeriesIdChain(r.id))
   [getSeriesId, topoSort]
 
+# Generate (rev) -> [rev] that returns dependent revisions
+@getGetDepIds = (state) ->
+  # Utility to get dependencies
+  allRevs = state.revisions
+  byId = _.keyBy(allRevs, (r) -> r.id)
+  if state.configFullSeries
+    (revId) ->
+      visited = {}
+      result = []
+      queue = [revId]
+      while queue.length > 0
+        id = queue.pop()
+        for depId in byId[id].dependsOn
+          if !visited[depId]
+            visited[depId] = 1
+            queue.push depId
+            result.push depId
+      result
+  else
+    (revId) -> []
+
 # Given a list of actions, return a function:
 # - isSeriesAction: (action) -> true | false
 _seriesRe = /\bth(e|is) series\b/i
