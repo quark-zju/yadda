@@ -1,13 +1,14 @@
-{MUTE_DATE, getDateCodeUpdated, getDateModified, getDateRead} = this
+{MUTE_DATE, getDateCodeUpdated, getDateModified, getDateRead, getGetDepIds} = this
 
 @getFilterGroups = (state, getStatus) =>
   readMap = state.readMap
+  getDepIds = getGetDepIds state
 
   # A filter group has a list of (name, filterFunc) tuples.
   reviewFilters = [
     # Note: if "getStatus" is not passed, filter functions are incorrect, but titles are okay.
     ['Needs 1st Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length == 0 && getStatus(r.id).rejects.length == 0]
-    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length > 0]
+    ['Needs 2nd Pass', (revs) -> revs.filter (r) -> getStatus(r.id).accepts.length > 0 && getDepIds(r.id).every((x) -> getStatus(x).rejects.length == 0)]
     ['Needs Revision', (revs) -> revs.filter (r) -> getStatus(r.id).rejects.length > 0]
   ]
 
